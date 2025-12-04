@@ -548,7 +548,7 @@ class App(QMainWindow):
         self.header = f"""#####################################
 #   This File Was Created By mDirt  #
 #               v{APP_VERSION}              #
-#   Copyright 2025 by Jupiter Dev   #
+#    Copyright 2025 by JoelDaDev    #
 #####################################\n"""
 
     #######################

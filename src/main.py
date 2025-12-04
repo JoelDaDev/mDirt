@@ -30,10 +30,10 @@ from generation.potion_generator import PotionGenerator, PotionEffectWidget, Pot
 from settings import SettingsManager
 from module import ModuleDownloader
 
-APP_VERSION = '3.1.0'
-FULL_APP_VERSION = '3.1.0-beta.2'
-LIB_URL = 'https://raw.githubusercontent.com/Faith-and-Code-Technologies/mDirt/main/lib'
-ISSUE_URL = 'https://github.com/Faith-and-Code-Technologies/mDirt/issues'
+APP_VERSION = '26.1'
+FULL_APP_VERSION = '26.1-beta-1'
+LIB_URL = 'https://raw.githubusercontent.com/JoelDaDev/mDirt/main/lib'
+ISSUE_URL = 'https://github.com/JoelDaDev/mDirt/issues'
 MINECRAFT_COLORS = [
     ("Black", "#000000"),
     ("Dark Blue", "#0000AA"),

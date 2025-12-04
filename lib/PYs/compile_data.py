@@ -192,8 +192,8 @@ def get_minecraft_files(version: str, soundver: str):
         except json.JSONDecodeError:
             print(f"Failed to parse {vibrations_file}")
 
-    zip_file_path.unlink()
-    sounds_json_path.unlink()
+    #zip_file_path.unlink()
+    #sounds_json_path.unlink()
     shutil.rmtree(extract_folder)
 
     blocks.sort()
@@ -287,6 +287,6 @@ def get_minecraft_files(version: str, soundver: str):
 # 1.21.5 = 24
 # 1.21.6/1.21.7/1.21.8 = 26 <- this file is NOT the same for 1.21.6 and 7 versions though!
 # 1.21.9/10 = 27
-# Next update: 28
+# 1.21.11: 29
 # We have NO IDEA why Mojang names their sounds this way.
-get_minecraft_files("25w45a", "28")
+get_minecraft_files("1.21.11-rc1", "29")

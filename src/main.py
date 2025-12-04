@@ -31,7 +31,7 @@ from settings import SettingsManager
 from module import ModuleDownloader
 
 APP_VERSION = '26.1'
-FULL_APP_VERSION = '26.1-beta-1'
+FULL_APP_VERSION = '26.1-beta.1'
 LIB_URL = 'https://raw.githubusercontent.com/JoelDaDev/mDirt/main/lib'
 ISSUE_URL = 'https://github.com/JoelDaDev/mDirt/issues'
 MINECRAFT_COLORS = [

@@ -1,14 +1,9 @@
-import datetime
-import json
 import os
 import sys
-import requests
 import importlib
 import shutil
-import string
 import subprocess
 import logging
-import string
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, QEvent, QObject
@@ -21,38 +16,16 @@ from utils.enums import BlockFace, ElementPage
 from utils.alert import alert
 
 import ui.select_item as select_item
-import ui.load_project as load_project
 from ui.ui import Ui_MainWindow
 
 from generation.text_generator import TextGenerator
 from generation.potion_generator import PotionGenerator, PotionEffectWidget, PotionColorPicker
 
 from settings import SettingsManager
-from module import ModuleDownloader
 
-APP_VERSION = 'v2026.1'
-FULL_APP_VERSION = 'v2026.1-beta.1'
-LIB_URL = 'https://raw.githubusercontent.com/JoelDaDev/mDirt/main/lib'
-ISSUE_URL = 'https://github.com/JoelDaDev/mDirt/issues'
-MINECRAFT_COLORS = [
-    ("Black", "#000000"),
-    ("Dark Blue", "#0000AA"),
-    ("Dark Green", "#00AA00"),
-    ("Dark Aqua", "#00AAAA"),
-    ("Dark Red", "#AA0000"),
-    ("Dark Purple", "#AA00AA"),
-    ("Gold", "#FFAA00"),
-    ("Gray", "#AAAAAA"),
-    ("Dark Gray", "#555555"),
-    ("Blue", "#5555FF"),
-    ("Green", "#55FF55"),
-    ("Aqua", "#55FFFF"),
-    ("Red", "#FF5555"),
-    ("Light Purple", "#FF55FF"),
-    ("Yellow", "#FFFF55"),
-    ("White", "#FFFFFF")
-]
-OBFUSCATE_PROPERTY = 10001
+from core.project_manager import ProjectManager
+
+from utils.const import *
 
 class DropHandler(QObject):
     def __init__(self, button, filetype, func):
@@ -109,10 +82,13 @@ class App(QMainWindow):
 
         self.workspacePath = "default"
 
+        # Project Man
+        self.project = ProjectManager(self.ui, self.mainDirectory)
+
         self.settings = SettingsManager()
 
         self.autoSaveTimer = QTimer(self)
-        self.autoSaveTimer.timeout.connect(self.saveProject)
+        self.autoSaveTimer.timeout.connect(self.project.saveProject)
         self.setAutoSaveInterval()
 
         self.logger = logging.getLogger("mDirt")
@@ -138,7 +114,7 @@ class App(QMainWindow):
         if self.settings.get('general', 'open_last_project'):
             project = self.settings.get('data', 'last_project_path')
             if os.path.exists(project):
-                self.loadProject(self.settings.get('data', 'last_project_namespace'))
+                self.project.loadProject(self.settings.get('data', 'last_project_namespace'))
         
         showTips = self.settings.get('appearance', 'show_tips')
         if not showTips:
@@ -176,11 +152,11 @@ class App(QMainWindow):
         self.effectWidgets = []
 
         # CONNECTIONS
-        self.ui.actionNew_Project.triggered.connect(self.openProjectMenu)
-        self.ui.createProjectButton.clicked.connect(self.newProject)
-        self.ui.actionOpen_Project.triggered.connect(self.loadProjectUI)
+        self.ui.actionNew_Project.triggered.connect(self.project.openProjectMenu)
+        self.ui.createProjectButton.clicked.connect(self.project.newProject)
+        self.ui.actionOpen_Project.triggered.connect(self.project.loadProjectUI)
         self.ui.actionExport_Project.triggered.connect(self.generate)
-        self.ui.actionSave_2.triggered.connect(self.saveProject)
+        self.ui.actionSave_2.triggered.connect(self.project.saveProject)
         self.ui.actionSettings.triggered.connect(self.openSettings)
 
         self.ui.settingsApplyButton.clicked.connect(self.saveSettings)
@@ -361,349 +337,6 @@ class App(QMainWindow):
             event.accept()
 
     #######################
-    # SETUP PROJECT       #
-    #######################
-
-    def pullSupportedVersions(self, remote=True):
-        verPath = self.mainDirectory / 'lib' / 'version_list.json'
-        with open(verPath, 'r') as f:
-            versionsa = json.load(f)
-        versions = versionsa["versions"]
-
-        if remote == False:
-            self.version_json = versionsa
-            self.supportedVersions = versions
-            return
-
-        self.ui.statusbar.showMessage("Pulling version list...", 2000)
-        version_url = f'{LIB_URL}/version_list.json'
-        
-        try:
-            response = requests.get(version_url, timeout=5)
-            response.raise_for_status()
-
-            data = response.json()
-            self.version_json = data
-            supportedVersions = data.get("versions", [])
-
-        except requests.exceptions.RequestException as e:
-            alert(f'Failed to download supported versions. Error: {e}\n\nPlease relaunch mDirt and try again. If the problem persists, report it here:\n{ISSUE_URL}')
-        except ValueError:
-            alert(f'Received invalid JSON from server.\n\nPlease try again or report the issue:\n{ISSUE_URL}')
-        
-        merged = {item: 'online' for item in supportedVersions}
-        merged.update({item: 'local' for item in versions})
-        self.supportedVersions = merged
-
-    def installVersionsJson(self):
-        path = self.mainDirectory / 'lib' / 'version_list.json'
-        with open(path, 'w') as f:
-            json.dump(self.version_json, f)
-
-    def openProjectMenu(self):
-        self.pullSupportedVersions()                   # Pulls the supported version list from the server.
-
-        self.ui.packVersion.clear()
-        for version, source in self.supportedVersions.items():
-            label = f"🌐 {version}" if source == "online" else version
-            self.ui.packVersion.addItem(label)     # Adds the versions to the dropdown.
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.PROJECT_SETUP)
-        self.unsavedChanges = True
-    
-    def validatePackDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.packName, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789", "Name"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.packNamespace, "abcdefghijklmnopqrstuvwxyz_0123456789", "Namespace"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.packDescription, string.printable, "Description"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.packAuthor, "abcdefghijklmnopqrstuvwxyz_0123456789", "Author"):
-            return 0
-
-        return 1
-
-    def pullData(self, remote=True):
-        self.ui.statusbar.showMessage("Pulling version data file...", 2000)
-        version = self.packDetails["version"]
-        local_path = self.mainDirectory / 'lib' / f'{version}_data.json'
-        url = f'{LIB_URL}/{version}_data.json'
-
-        if not os.path.exists(local_path):
-            response = requests.get(url)
-            if response.status_code == 200:
-                os.makedirs("lib", exist_ok=True)
-                with open(local_path, "wb") as f:
-                    f.write(response.content)
-            else:
-                alert(f'Failed to download data file for version {version}. (HTTP {response.status_code}). \nCheck your internet connection, and relaunch mDirt. If the issue persists, report it here:\n{ISSUE_URL}')
-
-            try: # Opens the JSON to ensure it is not corrupted.
-                with open(local_path, "r") as f:
-                    json.load(f)
-            except json.JSONDecodeError:
-                os.remove(local_path)
-                alert(f'Downloaded data file is corrupt or invalid JSON.\nCheck your internet connection, and relaunch mDirt. If the issue persists, report it here:\n{ISSUE_URL}')
-        
-            self.grabModule()
-
-    def grabModule(self):
-        self.ui.statusbar.showMessage("Pulling version module...", 2000)
-        version = f'v{self.packDetails["version"].replace(".", "_")}'
-        dir = self.mainDirectory / 'src' / 'generation'
-        self.moduleGrab = ModuleDownloader(target_dir=dir)
-        self.moduleGrab.download_and_extract(version)
-        
-    def newProject(self):
-        if self.validatePackDetails() == 0: return      # Make sure all fields aren't empty and only contain valid characters.
-        
-        if '🌐' in self.ui.packVersion.currentText():
-            remote = True
-        else: remote = False
-
-        if remote:
-            getRemote = QMessageBox.question(
-                self,
-                "Confirm Remote Download",
-                "The version you have selected is not installed. Would you like to install it?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            if getRemote == QMessageBox.Yes:
-                self.packDetails = {
-                    "name": self.ui.packName.text(),
-                    "namespace": self.ui.packNamespace.text(),
-                    "description": self.ui.packDescription.text(),
-                    "author": self.ui.packAuthor.text(),
-                    "version": self.ui.packVersion.currentText().removeprefix('🌐 ')
-                }
-
-                self.installVersionsJson()
-                self.pullData()
-                self.setupProjectData()
-
-                self.saveProjectAs()
-                self.ui.menuNew_Element.setEnabled(True) # Enable the Element buttons so user can add things to their pack
-                self.ui.menuTools.setEnabled(True)
-
-                self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-                self.ui.textEdit.setHtml(f'<h1>Welcome to mDirt. Create a new Element to get started.</h1>')
-            
-            else:
-                QMessageBox.information(self, 'Remote Download Cancelled',
-                                        'Remote Download Cancelled. Please select a different version.')
-
-        else:
-            self.packDetails = {
-                    "name": self.ui.packName.text(),
-                    "namespace": self.ui.packNamespace.text(),
-                    "description": self.ui.packDescription.text(),
-                    "author": self.ui.packAuthor.text(),
-                    "version": self.ui.packVersion.currentText()
-                }
-            self.setupProjectData()
-            self.saveProjectAs()
-            self.ui.menuNew_Element.setEnabled(True) # Enable the Element buttons so user can add things to their pack
-            self.ui.menuTools.setEnabled(True)
-            self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-            self.ui.textEdit.setHtml(f'<h1>Welcome to mDirt. Create a new Element to get started.</h1>')
-
-    def setupProjectData(self):
-        with open(f'{self.mainDirectory}/lib/{self.packDetails["version"]}_data.json', "r") as f:
-            self.data = json.load(f)
-        
-        self.dataFormat = self.version_json["dataformat"][self.packDetails["version"]]
-        self.resourceFormat = self.version_json["resourceformat"][self.packDetails["version"]]
-
-        self.ui.menuNew_Element.setEnabled(True)
-        self.ui.menuTools.setEnabled(True)
-
-        self.blocks = {}
-        self.items = {}
-        self.recipes = {}
-        self.paintings = {}
-        self.structures = {}
-        self.equipment = {}
-
-        self.exists = {}
-
-        try:
-            self.blocks_tree
-        except:
-            self.blocks_tree = QTreeWidgetItem(self.ui.elementViewer, ["Blocks"])
-            self.items_tree = QTreeWidgetItem(self.ui.elementViewer, ["Items"])
-            self.recipes_tree = QTreeWidgetItem(self.ui.elementViewer, ["Recipes"])
-            self.paintings_tree = QTreeWidgetItem(self.ui.elementViewer, ["Paintings"])
-            self.structures_tree = QTreeWidgetItem(self.ui.elementViewer, ["Structures"])
-            self.equipment_tree = QTreeWidgetItem(self.ui.elementViewer, ["Equipment"])
-
-        self.blockTexture = {}
-        self.itemTexture = None
-        self.recipe = {}
-        self.paintingTexture = None
-        self.structure = None
-        self.equipmentTexture = {}
-        self.equipmentModel = {}
-
-        self.header = f"""#####################################
-#   This File Was Created By mDirt  #
-#               v{APP_VERSION}              #
-#    Copyright 2025 by JoelDaDev    #
-#####################################\n"""
-
-    #######################
-    # SAVE / LOAD         #
-    #######################
-    
-    def saveProject(self):
-        self.saveProjectAs()
-
-    def saveProjectAs(self):
-        self.ui.statusbar.showMessage("Saving...", 2000)
-        if self.workspacePath == 'default':
-            projectDirectory = self.mainDirectory / 'workspaces' / f'{self.packDetails["namespace"]}'
-        else:
-            if os.path.exists(self.workspacePath):
-                projectDirectory = self.workspacePath
-            else:
-                projectDirectory = self.mainDirectory / 'workspaces' / f'{self.packDetails["namespace"]}'
-        self.settings.set('data', 'last_project_path', str(projectDirectory))
-        self.settings.set('data', 'last_project_namespace', self.packDetails["namespace"])
-        self.settings.save_settings()
-        
-        os.makedirs(projectDirectory, exist_ok=True)
-
-        with open(projectDirectory / 'project.dat', 'w') as file:
-            data = {
-            "app_version": APP_VERSION,
-            "metadata": {
-                "last_edited": datetime.datetime.now(datetime.timezone.utc).isoformat()
-            },
-            "packDetails": self.packDetails
-        }
-            json.dump(data, file, indent=4)
-            
-        with open(projectDirectory / 'blocks.json', 'w') as file:
-            json.dump(self.blocks, file, indent=4)
-        with open(projectDirectory / 'items.json', 'w') as file:
-            json.dump(self.items, file, indent=4)
-        with open(projectDirectory / 'recipes.json', 'w') as file:
-            json.dump(self.recipes, file, indent=4)
-        with open(projectDirectory / 'paintings.json', 'w') as file:
-            json.dump(self.paintings, file, indent=4)
-        with open(projectDirectory / 'structures.json', 'w') as file:
-            json.dump(self.structures, file, indent=4)
-        with open(projectDirectory / 'equipment.json', 'w') as file:
-            json.dump(self.equipment, file, indent=4)
-        
-        os.makedirs(projectDirectory / 'assets', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'blocks', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'items', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'paintings', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'structures', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'equipment', exist_ok=True)
-
-        manifestPath = self.mainDirectory / 'workspaces' / 'manifest.json'
-
-        # Load existing manifest if it exists, otherwise start fresh
-        if os.path.exists(manifestPath):
-            with open(manifestPath, 'r') as f:
-                manifest = json.load(f)
-        else:
-            manifest = {"workspaces": []}
-
-        # Add current workspace if it's not already listed
-        namespace = self.packDetails["namespace"]
-        if namespace not in manifest["workspaces"]:
-            manifest["workspaces"].append(namespace)
-            with open(manifestPath, 'w') as f:
-                json.dump(manifest, f, indent=4)
-        
-        self.unsavedChanges = False
-        
-    def loadProjectUI(self):
-        self.projectList = QWidget()
-        self.projectForm = load_project.Ui_Form()
-        self.projectForm.setupUi(self.projectList)
-
-        manifest_path = self.mainDirectory / 'workspaces' / 'manifest.json'
-        projects = []
-
-        if os.path.exists(manifest_path):
-            try:
-                with open(manifest_path, 'r') as f:
-                    manifest = json.load(f)
-                if "workspaces" in manifest and isinstance(manifest["workspaces"], list):
-                    projects = manifest["workspaces"]
-            except json.JSONDecodeError:
-                alert("There was an error reading the manifest.json!\nIt is either missing or malformed.")
-
-        self.projectForm.listWidget.clear()
-        self.projectForm.listWidget.addItems(projects)
-
-        self.projectForm.pushButton.clicked.connect(lambda: self.loadProject(self.projectForm.listWidget.item(self.projectForm.listWidget.currentRow()).text()))
-
-        self.projectList.show()
-
-    def loadProject(self, projectNamespace):
-        if projectNamespace == "":
-            alert("Please select a valid project!")
-            return
-        
-        self.ui.statusbar.showMessage("Loading Project...", 2000)
-
-        projectDirectory = self.mainDirectory / 'workspaces' / f'{projectNamespace}'
-        if not os.path.exists(projectDirectory):
-            alert("This project doesn't exist or is corrupted!")
-            return
-        
-        with open(projectDirectory / 'project.dat', 'r') as file:
-            data = json.load(file)
-            self.packDetails = data["packDetails"]
-        if data["app_version"] != APP_VERSION:
-            alert("Warning: This project was created with a different version of the app, and may cause crashes or corruption!")
-        
-        self.pullSupportedVersions(remote=False)
-        self.pullData(remote=False)
-        self.setupProjectData()
-
-        with open(projectDirectory / 'blocks.json', 'r') as file:
-            self.blocks = json.load(file)
-        with open(projectDirectory / 'items.json', 'r') as file:
-            self.items = json.load(file)
-        with open(projectDirectory / 'recipes.json', 'r') as file:
-            self.recipes = json.load(file)
-        with open(projectDirectory / 'paintings.json', 'r') as file:
-            self.paintings = json.load(file)
-        with open(projectDirectory / 'structures.json', 'r') as file:
-            self.structures = json.load(file)
-        with open(projectDirectory / 'equipment.json', 'r') as file:
-            self.equipment = json.load(file)
-        
-        try:
-            self.projectList.close()
-        except:
-            pass
-       
-        for item in self.blocks:
-            QTreeWidgetItem(self.blocks_tree, [self.blocks[item]["name"]])
-        
-        for item in self.items:
-            QTreeWidgetItem(self.items_tree, [self.items[item]["name"]])
-        
-        for item in self.recipes:
-            QTreeWidgetItem(self.recipes_tree, [self.recipes[item]["name"]])
-        
-        for item in self.paintings:
-            QTreeWidgetItem(self.paintings_tree, [self.paintings[item]["name"]])
-        
-        for item in self.structures:
-            QTreeWidgetItem(self.structures_tree, [self.structures[item]["name"]])
-        
-        for item in self.equipment:
-            QTreeWidgetItem(self.equipment_tree, [self.equipment[item]["name"]])
-        
-    #######################
     # SETTINGS            #
     #######################
 
@@ -873,15 +506,15 @@ class App(QMainWindow):
     def populateBlockDrop(self):
         self.ui.blockDropBox.clear()
         self.ui.blockDropBox.addItem('self')
-        for block in self.blocks:
+        for block in self.project.blocks:
             self.ui.blockDropBox.addItem(block)
-        for item in self.items:
+        for item in self.project.items:
             self.ui.blockDropBox.addItem(item)
-        for equip in self.equipment: 
+        for equip in self.project.equipment: 
                 for item in ['helmet', 'chestplate', 'leggings', 'boots', 'horse_armor']:
-                    if not self.equipment[equip]["includeHorse"]:
+                    if not self.project.equipment[equip]["includeHorse"]:
                         if item == "horse_armor": continue
-                    self.ui.blockDropBox.addItem(f'{self.equipment[equip]["name"]}_{item}')
+                    self.ui.blockDropBox.addItem(f'{self.project.equipment[equip]["name"]}_{item}')
         for item in self.data["items"]:
             self.ui.blockDropBox.addItem(item)
 
@@ -947,11 +580,11 @@ class App(QMainWindow):
             "directional": self.ui.blockDirectional.isChecked(),
             "model": self.ui.blockModel.currentText(),
         }
-        if not self.blockProperties["name"] in self.blocks:
-            self.blocks[self.blockProperties["name"]] = self.blockProperties
-            QTreeWidgetItem(self.blocks_tree, [self.blockProperties["name"]])
+        if not self.blockProperties["name"] in self.project.blocks:
+            self.project.blocks[self.blockProperties["name"]] = self.blockProperties
+            QTreeWidgetItem(self.project.blocks_tree, [self.blockProperties["name"]])
         else:
-            self.blocks[self.blockProperties["name"]] = self.blockProperties
+            self.project.blocks[self.blockProperties["name"]] = self.blockProperties
 
         self.clearBlockFields()
 
@@ -959,7 +592,7 @@ class App(QMainWindow):
         alert("Element added successfully!")
 
     def editBlock(self, block):
-        properties = self.blocks[block]
+        properties = self.project.blocks[block]
 
         self.ui.blockName.setText(properties["name"])
         self.ui.blockDisplayName.setText(properties["displayName"])
@@ -1095,10 +728,10 @@ class App(QMainWindow):
             "rightClick": rightClick,
         }
 
-        if not self.itemProperties["name"] in self.items:
-            QTreeWidgetItem(self.items_tree, [self.itemProperties["name"]])
+        if not self.itemProperties["name"] in self.project.items:
+            QTreeWidgetItem(self.project.items_tree, [self.itemProperties["name"]])
 
-        self.items[self.itemProperties["name"]] = self.itemProperties
+        self.project.items[self.itemProperties["name"]] = self.itemProperties
 
         self.clearItemFields()
 
@@ -1106,7 +739,7 @@ class App(QMainWindow):
         alert("Element added successfully!")
 
     def editItem(self, item):
-        properties = self.items[item]
+        properties = self.project.items[item]
 
         self.ui.itemName.setText(properties["name"])
         self.ui.itemDisplayName.setText(properties["displayName"])
@@ -1137,13 +770,13 @@ class App(QMainWindow):
         item_list = self.data["items"]
 
         if slotId in (9, 11, 13):
-            for block in self.blocks: self.ui_form.itemsBox.addItem(f'{self.blocks[block]["name"]}')
-            for item in self.items: self.ui_form.itemsBox.addItem(f'{self.items[item]["name"]}')
-            for equip in self.equipment: 
+            for block in self.project.blocks: self.ui_form.itemsBox.addItem(f'{self.project.blocks[block]["name"]}')
+            for item in self.project.items: self.ui_form.itemsBox.addItem(f'{self.project.items[item]["name"]}')
+            for equip in self.project.equipment: 
                 for item in ['helmet', 'chestplate', 'leggings', 'boots', 'horse_armor']:
-                    if not self.equipment[equip]["includeHorse"]:
+                    if not self.project.equipment[equip]["includeHorse"]:
                         if item == "horse_armor": continue
-                    self.ui_form.itemsBox.addItem(f'{self.equipment[equip]["name"]}_{item}')
+                    self.ui_form.itemsBox.addItem(f'{self.project.equipment[equip]["name"]}_{item}')
 
         for item in item_list: self.ui_form.itemsBox.addItem(item)
 
@@ -1238,10 +871,10 @@ class App(QMainWindow):
             "type": mode
         }
 
-        if not self.recipeProperties["name"] in self.recipes:
-            QTreeWidgetItem(self.recipes_tree, [self.recipeProperties["name"]])
+        if not self.recipeProperties["name"] in self.project.recipes:
+            QTreeWidgetItem(self.project.recipes_tree, [self.recipeProperties["name"]])
 
-        self.recipes[self.recipeProperties["name"]] = self.recipeProperties
+        self.project.recipes[self.recipeProperties["name"]] = self.recipeProperties
 
         self.clearRecipeFields()
 
@@ -1249,7 +882,7 @@ class App(QMainWindow):
         alert("Element added successfully!")
 
     def editRecipe(self, recipe):
-        properties = self.recipes[recipe]
+        properties = self.project.recipes[recipe]
 
         self.ui.recipeName.setText(properties["name"])
         self.ui.shapelessRadio.setChecked(properties["shapeless"])
@@ -1347,10 +980,10 @@ class App(QMainWindow):
             "texture": self.paintingTexture
         }
 
-        if not self.paintingProperties["name"] in self.paintings:
-            QTreeWidgetItem(self.paintings_tree, [self.paintingProperties["name"]])
+        if not self.paintingProperties["name"] in self.project.paintings:
+            QTreeWidgetItem(self.project.paintings_tree, [self.paintingProperties["name"]])
 
-        self.paintings[self.paintingProperties["name"]] = self.paintingProperties
+        self.project.paintings[self.paintingProperties["name"]] = self.paintingProperties
 
         self.clearPaintingFields()
 
@@ -1358,7 +991,7 @@ class App(QMainWindow):
         alert("Element added successfully!")
 
     def editPainting(self, painting):
-        properties = self.paintings[painting]
+        properties = self.project.paintings[painting]
 
         self.ui.paintingDisplayName.setText(properties["displayName"])
         self.ui.paintingName.setText(properties["name"])
@@ -1456,10 +1089,10 @@ class App(QMainWindow):
             "biomes": self.getCheckedBiomes()
         }
 
-        if not self.structureProperties["name"] in self.structures:
-            QTreeWidgetItem(self.structures_tree, [self.structureProperties["name"]])
+        if not self.structureProperties["name"] in self.project.structures:
+            QTreeWidgetItem(self.project.structures_tree, [self.structureProperties["name"]])
         
-        self.structures[self.structureProperties["name"]] = self.structureProperties
+        self.project.structures[self.structureProperties["name"]] = self.structureProperties
 
         self.clearStructureFields()
 
@@ -1467,7 +1100,7 @@ class App(QMainWindow):
         alert("Element added successfully!")
 
     def editStructure(self, struct):
-        properties = self.structures[struct]
+        properties = self.project.structures[struct]
 
         self.structure = properties["structure"]
 
@@ -1504,13 +1137,13 @@ class App(QMainWindow):
         shutil.copyfile(model, destinationPath)
 
         if type_.lower() == "humanoid":
-            self.equipmentModel["h"] = destinationPath
+            self.project.equipmentModel["h"] = destinationPath
         elif type_.lower() == "humanoid_leggings":
-            self.equipmentModel["h_l"] = destinationPath
+            self.project.equipmentModel["h_l"] = destinationPath
         elif type_.lower() == "horsearmor1":
-            self.equipmentModel["horseArmor"] = destinationPath
+            self.project.equipmentModel["horseArmor"] = destinationPath
         elif type_.lower() == "item":
-            self.equipmentTexture[id] = destinationPath
+            self.project.equipmentTexture[id] = destinationPath
         
         image = QImage(destinationPath)
         pixmap = QPixmap.fromImage(image).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
@@ -1527,15 +1160,15 @@ class App(QMainWindow):
         if not FieldValidator.validate_text_field(self.ui.equipmentDisplayName, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789", "Equipment Display Name"):
             return 0
         
-        if self.equipmentTexture["helmet"] == None: alert("Item Texture: Helmet is empty!"); return 0
-        if self.equipmentTexture["chestplate"] == None: alert("Item Texture: Chestplate is empty!"); return 0
-        if self.equipmentTexture["leggings"] == None: alert("Item Texture: Leggings is empty!"); return 0
-        if self.equipmentTexture["boots"] == None: alert("Item Texture: Boots is empty!"); return 0
-        if self.equipmentModel["h"] == None: alert("Model Texture: Humanoid is empty!"); return 0
-        if self.equipmentModel["h_l"] == None: alert("Model Texture: Humanoid Leggings is empty!"); return 0
+        if self.project.equipmentTexture["helmet"] == None: alert("Item Texture: Helmet is empty!"); return 0
+        if self.project.equipmentTexture["chestplate"] == None: alert("Item Texture: Chestplate is empty!"); return 0
+        if self.project.equipmentTexture["leggings"] == None: alert("Item Texture: Leggings is empty!"); return 0
+        if self.project.equipmentTexture["boots"] == None: alert("Item Texture: Boots is empty!"); return 0
+        if self.project.equipmentModel["h"] == None: alert("Model Texture: Humanoid is empty!"); return 0
+        if self.project.equipmentModel["h_l"] == None: alert("Model Texture: Humanoid Leggings is empty!"); return 0
         if self.ui.groupBox.isChecked:
-            if self.equipmentTexture["horseArmor"] == None: alert("Item Texture: Horse is empty!"); return 0
-            if self.equipmentModel["horseArmor"] == None: alert("Model Texture: Horse is empty!"); return 0
+            if self.project.equipmentTexture["horseArmor"] == None: alert("Item Texture: Horse is empty!"); return 0
+            if self.project.equipmentModel["horseArmor"] == None: alert("Model Texture: Horse is empty!"); return 0
 
         return 1
 
@@ -1565,15 +1198,15 @@ class App(QMainWindow):
             self.ui.equipmentDurability
         )
 
-        self.equipmentModel = {}
-        self.equipmentTexture = {}
+        self.project.equipmentModel = {}
+        self.project.equipmentTexture = {}
 
     def addEquipment(self):
         if self.validateEquipmentDetails() == 0: return
 
         base_dur = self.ui.equipmentDurability.value()
 
-        self.equipmentProperties = {
+        self.project.equipmentProperties = {
             "name": self.ui.equipmentName.text(),
             "displayName": self.ui.equipmentDisplayName.text(),
             "armor": {
@@ -1592,15 +1225,15 @@ class App(QMainWindow):
                 "boots": int(.8125 * base_dur),
                 "horse_armor": 1
             },
-            "itemTextures": self.equipmentTexture,
-            "modelTextures": self.equipmentModel,
+            "itemTextures": self.project.equipmentTexture,
+            "modelTextures": self.project.equipmentModel,
             "includeHorse": self.ui.groupBox.isChecked()
         }
 
-        if not self.equipmentProperties["name"] in self.equipment:
-            QTreeWidgetItem(self.equipment_tree, [self.equipmentProperties["name"]])
+        if not self.project.equipmentProperties["name"] in self.project.equipment:
+            QTreeWidgetItem(self.project.equipment_tree, [self.project.equipmentProperties["name"]])
         
-        self.equipment[self.equipmentProperties["name"]] = self.equipmentProperties
+        self.project.equipment[self.project.equipmentProperties["name"]] = self.project.equipmentProperties
 
         self.clearEquipmentFields()
 
@@ -1609,7 +1242,7 @@ class App(QMainWindow):
         alert("Element added successfully!")
 
     def editEquipment(self, equip):
-        properties = self.equipment[equip]
+        properties = self.project.equipment[equip]
 
         self.ui.equipmentDisplayName.setText(properties["displayName"])
         self.ui.equipmentName.setText(properties["name"])
@@ -1620,19 +1253,19 @@ class App(QMainWindow):
         self.ui.equipmentArmorToughness.setValue(properties["toughness"])
         self.ui.equipmentKBResistance.setValue(properties["kb_resistance"])
         self.ui.equipmentDurability.setValue(properties["durability"]["chestplate"])
-        self.equipmentTexture = properties["itemTextures"]
-        self.equipmentModel = properties["modelTextures"]
+        self.project.equipmentTexture = properties["itemTextures"]
+        self.project.equipmentModel = properties["modelTextures"]
         self.ui.groupBox.setChecked(properties["includeHorse"])
 
-        self.ui.helmetItemLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentTexture["helmet"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.chestplateItemLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentTexture["chestplate"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.leggingsItemLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentTexture["leggings"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.bootsItemLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentTexture["boots"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        try: self.ui.horseArmorItemLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentTexture["horseArmor"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        self.ui.helmetItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["helmet"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        self.ui.chestplateItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["chestplate"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        self.ui.leggingsItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["leggings"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        self.ui.bootsItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["boots"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        try: self.ui.horseArmorItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["horseArmor"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
         except: pass
-        self.ui.chestplateModelLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentModel["h"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.leggingsModelLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentModel["h_l"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        try: self.ui.horseArmorModelLabel.setPixmap(QPixmap.fromImage(QImage(self.equipmentModel["horseArmor"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        self.ui.chestplateModelLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentModel["h"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        self.ui.leggingsModelLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentModel["h_l"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
+        try: self.ui.horseArmorModelLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentModel["horseArmor"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
         except: pass
 
         self.ui.elementEditor.setCurrentIndex(ElementPage.EQUIPMENT)
@@ -1742,13 +1375,13 @@ class App(QMainWindow):
             self.resourceFormat,
             self.header,
             self.blocks,
-            self.items,
-            self.recipes,
-            self.paintings,
+            self.project.items,
+            self.project.recipes,
+            self.project.paintings,
             self.data,
             loc,
-            self.structures,
-            self.equipment
+            self.project.structures,
+            self.project.equipment
         )
 
         generator.generateDatapack()

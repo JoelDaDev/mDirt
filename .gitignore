@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
-workspaces/*
 internal_todo.txt
 *.spec
 build/*
@@ -10,3 +9,4 @@ settings.json
 exports/*
 v3.0.md
 venv/
+workspaces/

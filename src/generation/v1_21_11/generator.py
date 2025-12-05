@@ -49,7 +49,8 @@ class Generator():
         with open(os.path.join(self.resPackDirectory, "pack.mcmeta"), "w") as pack:
             json.dump({
                 "pack": {
-                    "pack_format": self.resourceFormat,
+                    "min_format": self.resourceFormat,
+                    "max_format": self.resourceFormat,
                     "description": self.packDescription
                 }
             }, pack, indent=4)
@@ -111,7 +112,8 @@ class Generator():
         # Write pack.mcmeta
         pack_meta = {
             "pack": {
-                "pack_format": self.dataFormat,
+                "min_format": self.dataFormat,
+                "max_format": self.dataFormat,
                 "description": self.packDescription
             }
         }

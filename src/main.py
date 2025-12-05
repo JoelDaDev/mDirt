@@ -6,14 +6,16 @@ import subprocess
 import logging
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer, QEvent, QObject
-from PySide6.QtGui import QImage, QPixmap, QFont, QDropEvent, QDragEnterEvent, QIcon, QFontDatabase
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QFontDatabase
 from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QWidget, QTreeWidgetItem, QCheckBox, QMessageBox
 
 from utils.field_validator import FieldValidator
 from utils.field_resetter import FieldResetter
 from utils.enums import BlockFace, ElementPage
 from utils.alert import alert
+from utils.const import *
+from utils.drop_handler import DropHandler
 
 import ui.select_item as select_item
 from ui.ui import Ui_MainWindow
@@ -24,45 +26,7 @@ from generation.potion_generator import PotionGenerator, PotionEffectWidget, Pot
 from settings import SettingsManager
 
 from core.project_manager import ProjectManager
-
-from utils.const import *
-
-class DropHandler(QObject):
-    def __init__(self, button, filetype, func):
-        super().__init__()
-        self.button = button
-        self.filetype = filetype
-        self.func = func
-        self.png_path = None
-        self.button.setAcceptDrops(True)
-        self.button.installEventFilter(self)
-
-    def eventFilter(self, watched, event):
-        if watched == self.button:
-            if event.type() == QEvent.DragEnter:
-                return self.dragEnter(event)
-            elif event.type() == QEvent.Drop:
-                return self.dropEvent(event)
-        return False
-
-    def dragEnter(self, event: QDragEnterEvent):
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                if url.toLocalFile().lower().endswith(self.filetype):
-                    event.acceptProposedAction()
-                    return True
-        event.ignore()
-        return True
-
-    def dropEvent(self, event: QDropEvent):
-        for url in event.mimeData().urls():
-            path = url.toLocalFile()
-            if path.lower().endswith(self.filetype):
-                self.png_path = path
-                self.func(path)
-                break
-        return True
-
+from core.settings_controller import SettingsController
 
 class App(QMainWindow):
     def __init__(self):
@@ -85,11 +49,13 @@ class App(QMainWindow):
         # Project Man
         self.project = ProjectManager(self.ui, self.mainDirectory)
 
-        self.settings = SettingsManager()
-
         self.autoSaveTimer = QTimer(self)
         self.autoSaveTimer.timeout.connect(self.project.saveProject)
-        self.setAutoSaveInterval()
+
+        self.settings = SettingsManager()
+        self.settingsController = SettingsController(app, self.ui, self.settings, self.autoSaveTimer, self.mainDirectory)
+
+        self.settingsController.setAutoSaveInterval()
 
         self.logger = logging.getLogger("mDirt")
         self.logger.setLevel(logging.DEBUG)
@@ -109,7 +75,7 @@ class App(QMainWindow):
         else:
             self.logger.setLevel(logging.WARNING)
 
-        self.disableUnusedSettings()
+        self.settingsController.disableUnusedSettings()
 
         if self.settings.get('general', 'open_last_project'):
             project = self.settings.get('data', 'last_project_path')
@@ -138,7 +104,7 @@ class App(QMainWindow):
 
         # Load Themes
         path = self.mainDirectory / 'assets' / 'themes'
-        self.loadThemes(path)
+        self.settingsController.loadThemes(path)
 
         # Load Fonts
         self.fontIDS = self.loadFonts()
@@ -157,11 +123,7 @@ class App(QMainWindow):
         self.ui.actionOpen_Project.triggered.connect(self.project.loadProjectUI)
         self.ui.actionExport_Project.triggered.connect(self.generate)
         self.ui.actionSave_2.triggered.connect(self.project.saveProject)
-        self.ui.actionSettings.triggered.connect(self.openSettings)
-
-        self.ui.settingsApplyButton.clicked.connect(self.saveSettings)
-        self.ui.settingsRestoreDefaultsButton.clicked.connect(self.restoreSettings)
-        self.ui.settingsCancelButton.clicked.connect(self.cancelSettings)
+        self.ui.actionSettings.triggered.connect(self.settingsController.openSettings)
 
         self.ui.elementViewer.itemDoubleClicked.connect(self.elementClicked)
 
@@ -291,7 +253,7 @@ class App(QMainWindow):
         self.ui.settingsWorkspacePathButton.clicked.connect(self.workspacePathChanged)
         self.ui.settingsDefaultExportButton.clicked.connect(self.exportPathChanged)
 
-        self.refreshSettings()
+        self.settingsController.refreshSettings()
 
         self.checkUpdates()
 
@@ -340,27 +302,6 @@ class App(QMainWindow):
     # SETTINGS            #
     #######################
 
-    def loadThemes(self, path):
-        self.themes = {}
-        folder = Path(path)
-        for file_path in folder.glob("*.qss"):
-            self.themes[file_path.name.removesuffix('.qss').replace('_', ' ').capitalize()] = str(file_path.absolute())
-
-    def disableUnusedSettings(self):
-        self.ui.settingsLanguageCombo.setDisabled(True)
-        self.ui.settingsExperimentsCheckbox.setDisabled(True)
-        self.ui.settingsPackFormatOverride.setDisabled(True)
-        self.ui.settingsUpdateURL.setDisabled(True)
-
-    def setAutoSaveInterval(self):
-        mode = self.settings.get('general', 'auto_save_interval').lower()
-        if mode == "1 minute":
-            self.autoSaveTimer.start(60 * 1000)
-        elif mode == "5 minutes":
-            self.autoSaveTimer.start(5 * 60 * 1000)
-        elif mode == "off":
-            self.autoSaveTimer.stop()
-
     def workspacePathChanged(self):
         loc = QFileDialog.getExistingDirectory(self, "Select Workspace Directory", "")
         self.ui.settingsWorkspacePathButton.setText(loc)
@@ -368,82 +309,6 @@ class App(QMainWindow):
     def exportPathChanged(self):
         loc = QFileDialog.getExistingDirectory(self, "Select Export Directory", "")
         self.ui.settingsDefaultExportButton.setText(loc)
-
-    def openSettings(self):
-        self.refreshSettings()
-        self.ui.elementEditor.setCurrentIndex(ElementPage.SETTINGS)
-    
-    def saveSettings(self):
-        self.settings.set('general', 'auto_save_interval', self.ui.settingsAutoSaveInt.currentText())
-        self.settings.set('general', 'open_last_project', self.ui.settingsOpenLastCheckbox.isChecked())
-        self.settings.set('general', 'workspace_path', self.ui.settingsWorkspacePathButton.text())
-        self.settings.set('general', 'language', self.ui.settingsLanguageCombo.currentText())
-        self.settings.set('appearance', 'theme', self.ui.settingsThemeCombo.currentText())
-        self.settings.set('appearance', 'font_size', self.ui.settingsFontSizeSlider.value())
-        self.settings.set('appearance', 'show_tips', self.ui.settingsTipsCheckbox.isChecked())
-        self.settings.set('editor', 'confirm_deletes', self.ui.settingsConfirmElementDeleteCheckbox.isChecked())
-        self.settings.set('editor', 'enable_experiments', self.ui.settingsExperimentsCheckbox.isChecked())
-        self.settings.set('file_export', 'default_export_location', self.ui.settingsDefaultExportButton.text())
-        self.settings.set('file_export', 'pack_format_override', self.ui.settingsPackFormatOverride.text())
-        self.settings.set('file_export', 'verbose_logging', self.ui.settingsVerboseLoggingCheckbox.isChecked())
-        self.settings.set('network', 'check_updates', self.ui.settingsCheckUpdatesCheckbox.isChecked())
-        self.settings.set('network', 'custom_update_url', self.ui.settingsUpdateURL.text())
-        self.settings.set('network', 'get_betas', self.ui.settingsBetaUpdatesCheckbox.isChecked())
-
-        self.settings.save_settings()
-        self.refreshSettings()
-
-        alert("Settings updated!")
-
-    def restoreSettings(self):
-        self.settings.reset_to_defaults()
-        self.refreshSettings()
-        alert("Settings have been restored to defaults!")
-
-    def cancelSettings(self):
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-
-    def refreshSettings(self):
-        self.loadThemes(self.mainDirectory / 'assets' / 'themes')
-        self.ui.settingsThemeCombo.clear()
-        for theme in self.themes:
-            self.ui.settingsThemeCombo.addItem(theme)
-        
-        self.ui.settingsThemeCombo.addItem('Dark')
-        self.ui.settingsThemeCombo.addItem('Light')
-
-        self.ui.settingsAutoSaveInt.setCurrentText(self.settings.get('general', 'auto_save_interval'))
-        self.ui.settingsOpenLastCheckbox.setChecked(self.settings.get('general', 'open_last_project'))
-        self.ui.settingsWorkspacePathButton.setText(self.settings.get('general', 'workspace_path'))
-        self.ui.settingsLanguageCombo.setCurrentText(self.settings.get('general', 'language'))
-        self.ui.settingsThemeCombo.setCurrentText(self.settings.get('appearance', 'theme'))
-        self.ui.settingsFontSizeSlider.setValue(self.settings.get('appearance', 'font_size'))
-        self.ui.settingsTipsCheckbox.setChecked(self.settings.get('appearance', 'show_tips'))
-        self.ui.settingsConfirmElementDeleteCheckbox.setChecked(self.settings.get('editor', 'confirm_deletes'))
-        self.ui.settingsExperimentsCheckbox.setChecked(self.settings.get('editor', 'enable_experiments'))
-        self.ui.settingsDefaultExportButton.setText(self.settings.get('file_export', 'default_export_location'))
-        self.ui.settingsPackFormatOverride.setText(self.settings.get('file_export', 'pack_format_override'))
-        self.ui.settingsVerboseLoggingCheckbox.setChecked(self.settings.get('file_export', 'verbose_logging'))
-        self.ui.settingsCheckUpdatesCheckbox.setChecked(self.settings.get('network', 'check_updates'))
-        self.ui.settingsUpdateURL.setText(self.settings.get('network', 'custom_update_url'))
-        self.ui.settingsBetaUpdatesCheckbox.setChecked(self.settings.get('network', 'get_betas'))
-
-        self.setAutoSaveInterval()
-        self.workspacePath = self.settings.get('general', 'workspace_path')
-        self.setFont(QFont("Segoe UI", self.settings.get('appearance', 'font_size')))
-        theme = self.settings.get('appearance', 'theme')
-        self.setStyleSheet("QPushButton:flat{background-color: transparent; border: 2px solid black;}")
-        if theme == "Dark":
-            app.styleHints().setColorScheme(Qt.ColorScheme.Dark)
-            app.setStyle('Fusion')
-        elif theme == "Light":
-            app.styleHints().setColorScheme(Qt.ColorScheme.Light)
-            app.setStyle('Fusion')
-        elif theme in self.themes.keys():
-            themePath = self.themes[theme]
-            with open(themePath, 'r') as f: # Add error checking here
-                themeQSS = f.read()
-                self.setStyleSheet(themeQSS)
 
     #######################
     # ELEMENT MANAGER     #

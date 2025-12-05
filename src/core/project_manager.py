@@ -5,7 +5,7 @@ import requests
 import string
 import string
 
-from PySide6.QtWidgets import QWidget, QTreeWidgetItem, QMessageBox, QMainWindow
+from PySide6.QtWidgets import QWidget, QTreeWidgetItem, QMessageBox
 
 from utils.field_validator import FieldValidator
 from utils.enums import ElementPage
@@ -17,7 +17,7 @@ from module import ModuleDownloader
 
 from utils.const import *
 
-class ProjectManager(QMainWindow):
+class ProjectManager():
     def __init__(self, ui, mainDirectory):
         super().__init__()
         self.ui = ui

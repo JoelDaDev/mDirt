@@ -4,7 +4,7 @@
     color: #EAE3D2;
     background-color: #2D1F1B;
     font-family: "Segoe UI", sans-serif;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 /* QMainWindow */

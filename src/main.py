@@ -344,7 +344,7 @@ class App(QMainWindow):
             texture = path
 
         filename = os.path.basename(texture)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.packDetails["namespace"]}/assets/blocks/{filename}'
+        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/blocks/{filename}'
         shutil.copyfile(texture, destinationPath)
 
         self.blockTexture[face] = destinationPath
@@ -390,7 +390,7 @@ class App(QMainWindow):
         filePath, _ = fileDialog.getOpenFileName(self, "Open JSON File", "", "JSON Files (*.json)")
         if filePath:
             fileName = os.path.basename(filePath)
-            destPath = f'{self.mainDirectory}/workspaces/{self.packDetails["namespace"]}/assets/blocks/{fileName}'
+            destPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/blocks/{fileName}'
             shutil.copy(filePath, destPath)
             self.ui.blockModel.addItem(destPath)
             self.ui.blockModel.setCurrentText(destPath)
@@ -500,7 +500,7 @@ class App(QMainWindow):
             texture = path
         
         filename = os.path.basename(texture)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.packDetails["namespace"]}/assets/items/{filename}'
+        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/items/{filename}'
         shutil.copyfile(texture, destinationPath)
 
         self.itemTexture = destinationPath
@@ -521,7 +521,7 @@ class App(QMainWindow):
         filePath, _ = fileDialog.getOpenFileName(self, "Open JSON File", "", "JSON Files (*.json)")
         if filePath:
             fileName = os.path.basename(filePath)
-            destPath = f'{self.mainDirectory}/workspaces/{self.packDetails["namespace"]}/assets/items/{fileName}'
+            destPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/items/{fileName}'
             shutil.copy(filePath, destPath)
             self.ui.itemModel.addItem(destPath)
             self.ui.itemModel.setCurrentText(destPath)
@@ -784,7 +784,7 @@ class App(QMainWindow):
             texture = path
 
         filename = os.path.basename(texture)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.packDetails["namespace"]}/assets/paintings/{filename}'
+        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/paintings/{filename}'
         shutil.copyfile(texture, destinationPath)
 
         self.paintingTexture = destinationPath
@@ -883,7 +883,7 @@ class App(QMainWindow):
             nbt = path
         
         filename = os.path.basename(nbt)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.packDetails["namespace"]}/assets/structures/{filename}'
+        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/structures/{filename}'
         shutil.copyfile(nbt, destinationPath)
 
         self.structure = destinationPath
@@ -998,7 +998,7 @@ class App(QMainWindow):
             model = path
         
         filename = os.path.basename(model)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.packDetails["namespace"]}/assets/equipment/{filename}'
+        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/equipment/{filename}'
         shutil.copyfile(model, destinationPath)
 
         if type_.lower() == "humanoid":
@@ -1219,7 +1219,7 @@ class App(QMainWindow):
 
     def generate(self):
         self.ui.statusbar.showMessage("Exporting project...", 2000)
-        version = self.packDetails["version"].replace(".", "_")
+        version = self.project.packDetails["version"].replace(".", "_")
 
         if getattr(sys, 'frozen', False):
             internal = 'src.'
@@ -1235,11 +1235,11 @@ class App(QMainWindow):
 
         generator = generator(
             APP_VERSION,
-            self.packDetails,
-            self.dataFormat,
-            self.resourceFormat,
-            self.header,
-            self.blocks,
+            self.project.packDetails,
+            self.project.dataFormat,
+            self.project.resourceFormat,
+            self.project.header,
+            self.project.blocks,
             self.project.items,
             self.project.recipes,
             self.project.paintings,
@@ -1251,6 +1251,7 @@ class App(QMainWindow):
 
         generator.generateDatapack()
 
+        # ZIP and present
         
         alert("Pack Generated!")
 

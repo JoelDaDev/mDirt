@@ -46,14 +46,14 @@ class App(QMainWindow):
 
         self.workspacePath = "default"
 
-        # Project Man
-        self.project = ProjectManager(self.ui, self.mainDirectory)
-
-        self.autoSaveTimer = QTimer(self)
-        self.autoSaveTimer.timeout.connect(self.project.saveProject)
-
         self.settings = SettingsManager()
+        self.autoSaveTimer = QTimer(self)
         self.settingsController = SettingsController(app, self.ui, self.settings, self.autoSaveTimer, self.mainDirectory)
+
+        # Project Man
+        self.project = ProjectManager(self.ui, self.mainDirectory, self.workspacePath, self.settings)
+
+        self.autoSaveTimer.timeout.connect(self.project.saveProject)
 
         self.settingsController.setAutoSaveInterval()
 
@@ -380,7 +380,7 @@ class App(QMainWindow):
                     if not self.project.equipment[equip]["includeHorse"]:
                         if item == "horse_armor": continue
                     self.ui.blockDropBox.addItem(f'{self.project.equipment[equip]["name"]}_{item}')
-        for item in self.data["items"]:
+        for item in self.project.data["items"]:
             self.ui.blockDropBox.addItem(item)
 
     def getBlockModel(self):
@@ -400,7 +400,7 @@ class App(QMainWindow):
             return 0
         if not FieldValidator.validate_text_field(self.ui.blockName, "abcdefghijklmnopqrstuvwxyz_0123456789", "Name"):
             return 0
-        if not FieldValidator.validate_dropdown_selection(self.ui.blockBaseBlock, list(self.data["blocks"]), "Base Block"):
+        if not FieldValidator.validate_dropdown_selection(self.ui.blockBaseBlock, list(self.project.data["blocks"]), "Base Block"):
             return 0
 
         return 1
@@ -531,7 +531,7 @@ class App(QMainWindow):
             return 0
         if not FieldValidator.validate_text_field(self.ui.itemName, "abcdefghijklmnopqrstuvwxyz_0123456789", "Item Name"):
             return 0
-        if not self.ui.itemBaseItem.text() in self.data["items"]:
+        if not self.ui.itemBaseItem.text() in self.project.data["items"]:
             self.ui.itemBaseItem.setStyleSheet("QLineEdit { border: 1px solid red; }")
             alert("Please input a Minecraft item to the Base Item field!")
             return 0
@@ -632,7 +632,7 @@ class App(QMainWindow):
         self.ui_form = select_item.Ui_Form()
         self.ui_form.setupUi(self.block_popup)
 
-        item_list = self.data["items"]
+        item_list = self.project.data["items"]
 
         if slotId in (9, 11, 13):
             for block in self.project.blocks: self.ui_form.itemsBox.addItem(f'{self.project.blocks[block]["name"]}')
@@ -896,7 +896,7 @@ class App(QMainWindow):
 
     def loadBiomeList(self):
         self.biomeCheckboxes = {}
-        biomeList = self.data["biomes"]
+        biomeList = self.project.data["biomes"]
 
         for biome in biomeList:
             checkbox = QCheckBox(biome)
@@ -1145,7 +1145,7 @@ class App(QMainWindow):
         self.ui.textGeneratorTextBox.setStyleSheet("background-color: #1e1e1e; color: white;")
 
     def potionGenerator(self):
-        for potionEffect in self.data["effects"]:
+        for potionEffect in self.project.data["effects"]:
             effect = potionEffect.replace("_", " ").capitalize()
             self.ui.potionEffectBox.addItem(effect)
         
@@ -1243,7 +1243,7 @@ class App(QMainWindow):
             self.project.items,
             self.project.recipes,
             self.project.paintings,
-            self.data,
+            self.project.data,
             loc,
             self.project.structures,
             self.project.equipment

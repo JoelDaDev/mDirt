@@ -18,10 +18,12 @@ from module import ModuleDownloader
 from utils.const import *
 
 class ProjectManager():
-    def __init__(self, ui, mainDirectory):
+    def __init__(self, ui, mainDirectory, workspacePath, settings):
         super().__init__()
         self.ui = ui
         self.mainDirectory = mainDirectory
+        self.workspacePath = workspacePath
+        self.settings = settings
 
     #######################
     # SETUP PROJECT       #

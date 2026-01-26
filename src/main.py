@@ -1251,7 +1251,17 @@ class App(QMainWindow):
 
         generator.generateDatapack()
 
-        # ZIP and present
+        # ZIP
+        packName = self.project.packDetails["name"]
+        self.dataPackPath = os.path.join(loc, packName)
+        self.resourcePackPath = os.path.join(loc, f'{packName} Resource Pack')
+        
+        shutil.make_archive(f'{self.dataPackPath} Data Pack', 'zip', self.dataPackPath)
+        shutil.make_archive(self.resourcePackPath, 'zip', self.resourcePackPath)
+
+        # Remove original folders
+        shutil.rmtree(self.dataPackPath)
+        shutil.rmtree(self.resourcePackPath)
         
         alert("Pack Generated!")
 

@@ -1262,6 +1262,12 @@ class App(QMainWindow):
         # Remove original folders
         shutil.rmtree(self.dataPackPath)
         shutil.rmtree(self.resourcePackPath)
+
+        # Present Files
+        dpPath = QFileDialog.getExistingDirectory(self, "Export Data Pack To:", "")
+        rpPath = QFileDialog.getExistingDirectory(self, "Export Resource Pack To:", "")
+        shutil.move(f'{self.dataPackPath} Data Pack.zip', os.path.join(dpPath, f'{packName} Data Pack.zip'))
+        shutil.move(f'{self.resourcePackPath}.zip', os.path.join(rpPath, f'{packName} Resource Pack.zip'))
         
         alert("Pack Generated!")
 

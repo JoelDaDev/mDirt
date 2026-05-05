@@ -1,11 +1,13 @@
 {
-    "versions": [
-        "26.1"
-    ],
-    "dataformat": {
-        "26.1": 101.1
-    },
-    "resourceformat": {
-        "26.1": 84.0
+    "versions": {
+        "26.1": {
+            "aliases": [
+                "26.1",
+                "26.1.1",
+                "26.1.2"
+            ],
+            "data_format": 101.1,
+            "resource_format": 84.0
+        }
     }
 }

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'uifHItuv.ui'
+## Form generated from reading UI file 'uiwfGguO.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.11.0
 ##
@@ -732,7 +732,7 @@ class Ui_MainWindow(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 700, 782))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 339, 782))
         self.verticalLayout_2 = QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.label_13 = QLabel(self.scrollAreaWidgetContents)
@@ -969,7 +969,7 @@ class Ui_MainWindow(object):
         self.structureEditor.setObjectName(u"structureEditor")
         self.formLayoutWidget_2 = QWidget(self.structureEditor)
         self.formLayoutWidget_2.setObjectName(u"formLayoutWidget_2")
-        self.formLayoutWidget_2.setGeometry(QRect(10, 10, 351, 338))
+        self.formLayoutWidget_2.setGeometry(QRect(10, 10, 390, 338))
         self.formLayout_9 = QFormLayout(self.formLayoutWidget_2)
         self.formLayout_9.setObjectName(u"formLayout_9")
         self.formLayout_9.setContentsMargins(0, 0, 0, 0)
@@ -1551,7 +1551,7 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
 
         self.elementEditor.setCurrentIndex(0)
-        self.recipeSubTabs.setCurrentIndex(2)
+        self.recipeSubTabs.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(MainWindow)

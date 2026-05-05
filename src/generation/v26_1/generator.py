@@ -261,3 +261,4 @@ class Generator():
         #######################
 
         self.generateResourcePack()
+

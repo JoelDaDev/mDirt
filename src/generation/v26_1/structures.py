@@ -78,3 +78,4 @@ class StructureGenerator:
             path = os.path.join(self.namespaceDirectory, 'structure')
             destPath = os.path.join(path, os.path.splitext(os.path.basename(str(struct["structure"])))[-2])
             shutil.copy(struct['structure'], os.path.normpath(f'{destPath}.nbt'))
+

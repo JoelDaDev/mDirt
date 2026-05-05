@@ -73,3 +73,4 @@ class PaintingResourcer:
                     f'{currentPath}/{os.path.splitext(os.path.basename(str(self.paintings[painting]["texture"])))[-2]}.png'
                 ),
             )
+

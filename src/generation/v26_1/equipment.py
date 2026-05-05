@@ -145,3 +145,4 @@ class EquipmentResourcer:
                     self.equipment[equip]["modelTextures"][texture], 
                     os.path.normpath(f'{currentPath}/emerald.png')
                     )
+

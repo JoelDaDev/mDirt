@@ -188,3 +188,4 @@ class BlockResourcer:
                             texture
                         ] = f'{self.packNamespace}:item/{model["textures"][texture]}'
                     file.write(str(model).replace("'", '"'))
+

@@ -84,3 +84,4 @@ class RecipeGenerator:
 
                 with open(f'{self.namespaceDirectory}/recipe/{self.recipes[recipe]["name"]}.json', 'w') as file:
                         file.write(content)
+

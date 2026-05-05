@@ -721,16 +721,18 @@ class App(QMainWindow):
 
         if self.ui.recipeSubTabs.tabText(self.ui.recipeSubTabs.currentIndex()).lower() == "crafting":
             mode = "crafting"
+            outputCount = self.ui.slot9Count.value()
         elif self.ui.recipeSubTabs.tabText(self.ui.recipeSubTabs.currentIndex()).lower() == "smelting":
             mode = self.ui.smeltingModeBox.currentText().lower()
+            outputCount = ""
         elif self.ui.recipeSubTabs.tabText(self.ui.recipeSubTabs.currentIndex()).lower() == "stonecutting":
             mode = "stonecutting"
+            outputCount = self.ui.stoneCuttingCount.value()
 
         self.recipeProperties = {
             "name": self.ui.recipeName.text(),
             "items": self.recipe,
-            "outputCount": self.ui.slot9Count.value(),
-            "outputCount2": self.ui.stoneCuttingCount.value(),
+            "outputCount": outputCount,
             "exact": self.ui.exactlyRadio.isChecked(),
             "shapeless": self.ui.shapelessRadio.isChecked(),
             "type": mode
@@ -753,6 +755,7 @@ class App(QMainWindow):
         self.ui.shapelessRadio.setChecked(properties["shapeless"])
         self.ui.exactlyRadio.setChecked(properties["exact"])
         self.ui.slot9Count.setValue(properties["outputCount"])
+        self.ui.stoneCuttingCount.setValue(properties["outputCount"])
 
         items = properties.get("items", {})
 

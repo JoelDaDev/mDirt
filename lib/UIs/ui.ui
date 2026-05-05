@@ -454,7 +454,7 @@
         <item row="1" column="0" colspan="2">
          <widget class="QTabWidget" name="recipeSubTabs">
           <property name="currentIndex">
-           <number>2</number>
+           <number>0</number>
           </property>
           <widget class="QWidget" name="craftingTab">
            <attribute name="title">
@@ -1659,7 +1659,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>700</width>
+           <width>339</width>
            <height>782</height>
           </rect>
          </property>
@@ -2041,7 +2041,7 @@
          <rect>
           <x>10</x>
           <y>10</y>
-          <width>351</width>
+          <width>390</width>
           <height>338</height>
          </rect>
         </property>

@@ -152,3 +152,4 @@ class ItemResourcer:
                 self.items[item]["texture"], 
                 os.path.normpath(f'{currentPath}/{os.path.splitext(os.path.basename(str(self.items[item]["texture"])))[-2]}.png')
                 )
+

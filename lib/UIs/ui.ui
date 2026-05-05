@@ -189,7 +189,7 @@
          <rect>
           <x>260</x>
           <y>10</y>
-          <width>49</width>
+          <width>61</width>
           <height>16</height>
          </rect>
         </property>
@@ -203,7 +203,7 @@
           <x>10</x>
           <y>10</y>
           <width>241</width>
-          <height>286</height>
+          <height>331</height>
          </rect>
         </property>
         <layout class="QGridLayout" name="gridLayout">
@@ -454,7 +454,7 @@
         <item row="1" column="0" colspan="2">
          <widget class="QTabWidget" name="recipeSubTabs">
           <property name="currentIndex">
-           <number>0</number>
+           <number>2</number>
           </property>
           <widget class="QWidget" name="craftingTab">
            <attribute name="title">
@@ -1148,7 +1148,7 @@
          <rect>
           <x>370</x>
           <y>60</y>
-          <width>49</width>
+          <width>61</width>
           <height>16</height>
          </rect>
         </property>
@@ -1659,7 +1659,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>339</width>
+           <width>700</width>
            <height>782</height>
           </rect>
          </property>
@@ -2041,7 +2041,7 @@
          <rect>
           <x>10</x>
           <y>10</y>
-          <width>452</width>
+          <width>351</width>
           <height>338</height>
          </rect>
         </property>
@@ -2210,8 +2210,11 @@
          </item>
          <item row="5" column="0">
           <widget class="QLabel" name="label_38">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Project Start to Heightmap&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
            <property name="text">
-            <string>Project Start to Heightmap:</string>
+            <string>Project Start:</string>
            </property>
           </widget>
          </item>
@@ -2343,11 +2346,28 @@
          <rect>
           <x>10</x>
           <y>10</y>
-          <width>261</width>
-          <height>369</height>
+          <width>291</width>
+          <height>395</height>
          </rect>
         </property>
         <layout class="QFormLayout" name="formLayout_10">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_56">
+           <property name="text">
+            <string>Display Name:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="equipmentDisplayName">
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The display name of the armor SET&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="placeholderText">
+            <string>Emerald</string>
+           </property>
+          </widget>
+         </item>
          <item row="1" column="0">
           <widget class="QLabel" name="label_34">
            <property name="text">
@@ -2494,29 +2514,12 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_56">
-           <property name="text">
-            <string>Display Name:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="equipmentDisplayName">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The display name of the armor SET&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="placeholderText">
-            <string>Emerald</string>
-           </property>
-          </widget>
-         </item>
         </layout>
        </widget>
        <widget class="QPushButton" name="helmetItem">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>20</y>
           <width>50</width>
           <height>50</height>
@@ -2538,7 +2541,7 @@
        <widget class="QLabel" name="helmetItemLabel">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>20</y>
           <width>50</width>
           <height>50</height>
@@ -2551,7 +2554,7 @@
        <widget class="QLabel" name="chestplateItemLabel">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>80</y>
           <width>50</width>
           <height>50</height>
@@ -2564,7 +2567,7 @@
        <widget class="QPushButton" name="chestplateItem">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>80</y>
           <width>50</width>
           <height>50</height>
@@ -2586,7 +2589,7 @@
        <widget class="QLabel" name="leggingsItemLabel">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>140</y>
           <width>50</width>
           <height>50</height>
@@ -2599,7 +2602,7 @@
        <widget class="QPushButton" name="leggingsItem">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>140</y>
           <width>50</width>
           <height>50</height>
@@ -2621,7 +2624,7 @@
        <widget class="QLabel" name="bootsItemLabel">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>200</y>
           <width>50</width>
           <height>50</height>
@@ -2634,7 +2637,7 @@
        <widget class="QPushButton" name="bootsItem">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>330</x>
           <y>200</y>
           <width>50</width>
           <height>50</height>
@@ -2656,7 +2659,7 @@
        <widget class="QPushButton" name="chestplateModel">
         <property name="geometry">
          <rect>
-          <x>370</x>
+          <x>430</x>
           <y>80</y>
           <width>50</width>
           <height>50</height>
@@ -2678,7 +2681,7 @@
        <widget class="QLabel" name="chestplateModelLabel">
         <property name="geometry">
          <rect>
-          <x>370</x>
+          <x>430</x>
           <y>80</y>
           <width>50</width>
           <height>50</height>
@@ -2691,7 +2694,7 @@
        <widget class="QLabel" name="leggingsModelLabel">
         <property name="geometry">
          <rect>
-          <x>370</x>
+          <x>430</x>
           <y>140</y>
           <width>50</width>
           <height>50</height>
@@ -2704,7 +2707,7 @@
        <widget class="QPushButton" name="leggingsModel">
         <property name="geometry">
          <rect>
-          <x>370</x>
+          <x>430</x>
           <y>140</y>
           <width>50</width>
           <height>50</height>
@@ -2726,9 +2729,9 @@
        <widget class="QLabel" name="label_47">
         <property name="geometry">
          <rect>
-          <x>260</x>
+          <x>320</x>
           <y>0</y>
-          <width>81</width>
+          <width>101</width>
           <height>16</height>
          </rect>
         </property>
@@ -2742,9 +2745,9 @@
        <widget class="QLabel" name="label_48">
         <property name="geometry">
          <rect>
-          <x>360</x>
+          <x>440</x>
           <y>0</y>
-          <width>91</width>
+          <width>121</width>
           <height>16</height>
          </rect>
         </property>
@@ -2758,8 +2761,8 @@
        <widget class="QGroupBox" name="groupBox">
         <property name="geometry">
          <rect>
-          <x>10</x>
-          <y>310</y>
+          <x>30</x>
+          <y>410</y>
           <width>241</width>
           <height>141</height>
          </rect>
@@ -2913,7 +2916,7 @@
        <widget class="QLabel" name="label_54">
         <property name="geometry">
          <rect>
-          <x>430</x>
+          <x>500</x>
           <y>90</y>
           <width>61</width>
           <height>16</height>
@@ -2926,8 +2929,8 @@
        <widget class="QLabel" name="label_55">
         <property name="geometry">
          <rect>
-          <x>430</x>
-          <y>150</y>
+          <x>500</x>
+          <y>160</y>
           <width>111</width>
           <height>16</height>
          </rect>
@@ -3176,8 +3179,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>96</width>
-             <height>26</height>
+             <width>713</width>
+             <height>195</height>
             </rect>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_4">

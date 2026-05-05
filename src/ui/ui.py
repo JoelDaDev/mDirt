@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'uibcpfWT.ui'
+## Form generated from reading UI file 'uivJajPJ.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.11.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -65,6 +65,8 @@ class Ui_MainWindow(object):
         self.actionText_Generator.setObjectName(u"actionText_Generator")
         self.actionPotion_Generator = QAction(MainWindow)
         self.actionPotion_Generator.setObjectName(u"actionPotion_Generator")
+        self.actionExport_to_ZIP = QAction(MainWindow)
+        self.actionExport_to_ZIP.setObjectName(u"actionExport_to_ZIP")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.formLayout_2 = QFormLayout(self.centralwidget)
@@ -74,7 +76,7 @@ class Ui_MainWindow(object):
         font.setBold(True)
         font.setUnderline(True)
         __qtreewidgetitem = QTreeWidgetItem()
-        __qtreewidgetitem.setFont(0, font);
+        __qtreewidgetitem.setFont(0, font)
         self.elementViewer.setHeaderItem(__qtreewidgetitem)
         self.elementViewer.setObjectName(u"elementViewer")
         self.elementViewer.setMinimumSize(QSize(211, 0))
@@ -130,7 +132,7 @@ class Ui_MainWindow(object):
         self.blockTextureLabel.setGeometry(QRect(260, 10, 49, 16))
         self.layoutWidget = QWidget(self.blockEditor)
         self.layoutWidget.setObjectName(u"layoutWidget")
-        self.layoutWidget.setGeometry(QRect(10, 10, 241, 280))
+        self.layoutWidget.setGeometry(QRect(10, 10, 241, 286))
         self.gridLayout = QGridLayout(self.layoutWidget)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
@@ -569,7 +571,7 @@ class Ui_MainWindow(object):
         self.paintingTextureLabel.setGeometry(QRect(410, 30, 58, 15))
         self.layoutWidget2 = QWidget(self.paintingEditor)
         self.layoutWidget2.setObjectName(u"layoutWidget2")
-        self.layoutWidget2.setGeometry(QRect(10, 0, 359, 215))
+        self.layoutWidget2.setGeometry(QRect(10, 0, 400, 234))
         self.gridLayout_3 = QGridLayout(self.layoutWidget2)
         self.gridLayout_3.setObjectName(u"gridLayout_3")
         self.gridLayout_3.setContentsMargins(0, 0, 0, 0)
@@ -730,7 +732,7 @@ class Ui_MainWindow(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 719, 679))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 339, 782))
         self.verticalLayout_2 = QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.label_13 = QLabel(self.scrollAreaWidgetContents)
@@ -967,7 +969,7 @@ class Ui_MainWindow(object):
         self.structureEditor.setObjectName(u"structureEditor")
         self.formLayoutWidget_2 = QWidget(self.structureEditor)
         self.formLayoutWidget_2.setObjectName(u"formLayoutWidget_2")
-        self.formLayoutWidget_2.setGeometry(QRect(10, 10, 361, 281))
+        self.formLayoutWidget_2.setGeometry(QRect(10, 10, 452, 338))
         self.formLayout_9 = QFormLayout(self.formLayoutWidget_2)
         self.formLayout_9.setObjectName(u"formLayout_9")
         self.formLayout_9.setContentsMargins(0, 0, 0, 0)
@@ -1088,7 +1090,7 @@ class Ui_MainWindow(object):
         self.biomeScrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 339, 619))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 341, 621))
         self.verticalLayout = QVBoxLayout(self.scrollAreaWidgetContents_2)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.viomeScrollContents = QWidget(self.scrollAreaWidgetContents_2)
@@ -1109,7 +1111,7 @@ class Ui_MainWindow(object):
         self.equipmentEditor.setObjectName(u"equipmentEditor")
         self.formLayoutWidget_3 = QWidget(self.equipmentEditor)
         self.formLayoutWidget_3.setObjectName(u"formLayoutWidget_3")
-        self.formLayoutWidget_3.setGeometry(QRect(10, 10, 241, 292))
+        self.formLayoutWidget_3.setGeometry(QRect(10, 10, 261, 369))
         self.formLayout_10 = QFormLayout(self.formLayoutWidget_3)
         self.formLayout_10.setObjectName(u"formLayout_10")
         self.formLayout_10.setContentsMargins(0, 0, 0, 0)
@@ -1467,7 +1469,7 @@ class Ui_MainWindow(object):
         self.potionScrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 703, 218))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 96, 26))
         self.verticalLayout_4 = QVBoxLayout(self.scrollAreaWidgetContents_3)
         self.verticalLayout_4.setObjectName(u"verticalLayout_4")
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
@@ -1515,7 +1517,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
         self.menuBar = QMenuBar(MainWindow)
         self.menuBar.setObjectName(u"menuBar")
-        self.menuBar.setGeometry(QRect(0, 0, 1003, 33))
+        self.menuBar.setGeometry(QRect(0, 0, 1003, 30))
         self.menuNew_Element = QMenu(self.menuBar)
         self.menuNew_Element.setObjectName(u"menuNew_Element")
         self.menuSave = QMenu(self.menuBar)
@@ -1556,7 +1558,7 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"mDirt - v3.1.0 Beta 2", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"mDirt - v2026.1 Beta 1", None))
         self.actionBlock.setText(QCoreApplication.translate("MainWindow", u"Block", None))
         self.actionRecipe.setText(QCoreApplication.translate("MainWindow", u"Recipe", None))
         self.actionPainting.setText(QCoreApplication.translate("MainWindow", u"Painting", None))
@@ -1568,14 +1570,15 @@ class Ui_MainWindow(object):
         self.actionOpen_Project.setText(QCoreApplication.translate("MainWindow", u"Open Project", None))
         self.actionSave_2.setText(QCoreApplication.translate("MainWindow", u"Save", None))
         self.actionSave_As.setText(QCoreApplication.translate("MainWindow", u"Save As...", None))
-        self.actionExport_Project.setText(QCoreApplication.translate("MainWindow", u"Export Project", None))
+        self.actionExport_Project.setText(QCoreApplication.translate("MainWindow", u"Export to ZIP", None))
         self.actionSettings.setText(QCoreApplication.translate("MainWindow", u"Settings", None))
         self.actionStructure.setText(QCoreApplication.translate("MainWindow", u"Structure", None))
         self.actionEquipmentSet.setText(QCoreApplication.translate("MainWindow", u"Equipment Set", None))
         self.actionText_Generator.setText(QCoreApplication.translate("MainWindow", u"Text Generator", None))
         self.actionPotion_Generator.setText(QCoreApplication.translate("MainWindow", u"Potion Generator", None))
+        self.actionExport_to_ZIP.setText(QCoreApplication.translate("MainWindow", u"Export to ZIP", None))
         ___qtreewidgetitem = self.elementViewer.headerItem()
-        ___qtreewidgetitem.setText(0, QCoreApplication.translate("MainWindow", u"Element Viewer", None));
+        ___qtreewidgetitem.setText(0, QCoreApplication.translate("MainWindow", u"Element Viewer", None))
 #if QT_CONFIG(tooltip)
         self.blockTextureButtonBottom.setToolTip(QCoreApplication.translate("MainWindow", u"<html><head/><body><p>The bottom texture of your block. <span style=\" font-weight:700;\">If you are using a Custom model, only use this texture!</span></p></body></html>", None))
 #endif // QT_CONFIG(tooltip)

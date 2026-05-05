@@ -177,8 +177,8 @@ class ProjectManager():
         with open(f'{self.mainDirectory}/lib/{self.packDetails["version"]}_data.json', "r") as f:
             self.data = json.load(f)
         
-        self.dataFormat = self.version_json["dataformat"][self.packDetails["version"]]
-        self.resourceFormat = self.version_json["resourceformat"][self.packDetails["version"]]
+        self.dataFormat = self.version_json["versions"][self.packDetails["version"]]["data_format"]
+        self.resourceFormat = self.version_json["versions"][self.packDetails["version"]]["resource_format"]
 
         self.ui.menuNew_Element.setEnabled(True)
         self.ui.menuTools.setEnabled(True)

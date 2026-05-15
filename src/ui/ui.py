@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'uihELaZv.ui'
+## Form generated from reading UI file 'uiUURAYo.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.11.0
 ##
@@ -1693,7 +1693,7 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"mDirt - v2026.1 Beta 1", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"mDirt - v2026.1 Beta 2", None))
         self.actionBlock.setText(QCoreApplication.translate("MainWindow", u"Block", None))
         self.actionRecipe.setText(QCoreApplication.translate("MainWindow", u"Recipe", None))
         self.actionPainting.setText(QCoreApplication.translate("MainWindow", u"Painting", None))

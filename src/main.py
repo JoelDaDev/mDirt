@@ -117,14 +117,7 @@ class App(QMainWindow):
         self.potion_generator = None
         self.effectWidgets = []
 
-        version = self.project.packDetails["version"]
-        self.ui.actionSulfurCubeArchetype.setEnabled(False)
-        try:
-            enabled = "sulfur_cube_archetype" in self.project.version_json["versions"][version]["enable_elements"]
-            self.ui.actionSulfurCubeArchetype.setEnabled(enabled)
-            print(enabled)
-        except:
-            pass
+        self.project.enableVersionedElements()
 
         # CONNECTIONS
         self.ui.actionNew_Project.triggered.connect(self.project.openProjectMenu)

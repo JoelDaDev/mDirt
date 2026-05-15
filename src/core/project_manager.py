@@ -172,6 +172,8 @@ class ProjectManager():
             self.ui.menuTools.setEnabled(True)
             self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
             self.ui.textEdit.setHtml(f'<h1>Welcome to mDirt. Create a new Element to get started.</h1>')
+        
+        self.enableVersionedElements()
 
     def setupProjectData(self):
         with open(f'{self.mainDirectory}/lib/{self.packDetails["version"]}_data.json', "r") as f:
@@ -215,6 +217,16 @@ class ProjectManager():
 #               {APP_VERSION}              #
 #    Copyright 2026 by JoelDaDev    #
 #####################################\n"""
+
+    def enableVersionedElements(self):
+        self.ui.actionSulfurCubeArchetype.setEnabled(False)
+        try:
+            version = self.packDetails["version"]
+            enabled = "sulfur_cube_archetype" in self.version_json["versions"][version]["enable_elements"]
+            self.ui.actionSulfurCubeArchetype.setEnabled(enabled)
+        except:
+            pass
+
 
     #######################
     # SAVE / LOAD         #

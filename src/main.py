@@ -1148,7 +1148,14 @@ class App(QMainWindow):
 
     def newArchetype(self):
         self.unsavedChanges = True
+        self.populateArchetypeAttributes()
         self.ui.elementEditor.setCurrentIndex(ElementPage.ARCHETYPE_GENERATOR)
+
+    def populateArchetypeAttributes(self):
+        self.ui.archetypeAttributeComboBox.clear()
+
+        for attribute in self.project.data["attributes"]:
+            self.ui.archetypeAttributeComboBox.addItem(attribute)
 
     #######################
     # TOOLS               #

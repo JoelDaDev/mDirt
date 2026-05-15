@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'uiUURAYo.ui'
+## Form generated from reading UI file 'uiAJQcrr.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.11.0
 ##
@@ -735,7 +735,7 @@ class Ui_MainWindow(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 339, 782))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 700, 782))
         self.verticalLayout_2 = QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.label_13 = QLabel(self.scrollAreaWidgetContents)
@@ -1472,7 +1472,7 @@ class Ui_MainWindow(object):
         self.potionScrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 96, 26))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 713, 195))
         self.verticalLayout_4 = QVBoxLayout(self.scrollAreaWidgetContents_3)
         self.verticalLayout_4.setObjectName(u"verticalLayout_4")
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
@@ -1568,15 +1568,15 @@ class Ui_MainWindow(object):
 
         self.formLayout_13 = QFormLayout()
         self.formLayout_13.setObjectName(u"formLayout_13")
-        self.archetypeCausesFire = QLabel(self.formLayoutWidget_4)
+        self.label_79 = QLabel(self.formLayoutWidget_4)
+        self.label_79.setObjectName(u"label_79")
+
+        self.formLayout_13.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_79)
+
+        self.archetypeCausesFire = QCheckBox(self.formLayoutWidget_4)
         self.archetypeCausesFire.setObjectName(u"archetypeCausesFire")
 
-        self.formLayout_13.setWidget(0, QFormLayout.ItemRole.LabelRole, self.archetypeCausesFire)
-
-        self.checkBox_3 = QCheckBox(self.formLayoutWidget_4)
-        self.checkBox_3.setObjectName(u"checkBox_3")
-
-        self.formLayout_13.setWidget(0, QFormLayout.ItemRole.FieldRole, self.checkBox_3)
+        self.formLayout_13.setWidget(0, QFormLayout.ItemRole.FieldRole, self.archetypeCausesFire)
 
         self.label_66 = QLabel(self.formLayoutWidget_4)
         self.label_66.setObjectName(u"label_66")
@@ -1642,6 +1642,42 @@ class Ui_MainWindow(object):
 
         self.formLayout_12.setLayout(5, QFormLayout.ItemRole.FieldRole, self.formLayout_14)
 
+        self.archetypeConfirmButton = QPushButton(self.formLayoutWidget_4)
+        self.archetypeConfirmButton.setObjectName(u"archetypeConfirmButton")
+
+        self.formLayout_12.setWidget(6, QFormLayout.ItemRole.SpanningRole, self.archetypeConfirmButton)
+
+        self.scrollArea_2 = QScrollArea(self.archetypeEditor)
+        self.scrollArea_2.setObjectName(u"scrollArea_2")
+        self.scrollArea_2.setGeometry(QRect(430, 10, 281, 561))
+        self.scrollArea_2.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_4 = QWidget()
+        self.scrollAreaWidgetContents_4.setObjectName(u"scrollAreaWidgetContents_4")
+        self.scrollAreaWidgetContents_4.setGeometry(QRect(0, 0, 281, 561))
+        self.gridLayout_6 = QGridLayout(self.scrollAreaWidgetContents_4)
+        self.gridLayout_6.setObjectName(u"gridLayout_6")
+        self.archetypeAttributeButton = QPushButton(self.scrollAreaWidgetContents_4)
+        self.archetypeAttributeButton.setObjectName(u"archetypeAttributeButton")
+        icon7 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ContactNew))
+        self.archetypeAttributeButton.setIcon(icon7)
+
+        self.gridLayout_6.addWidget(self.archetypeAttributeButton, 1, 1, 1, 1)
+
+        self.archetypeAttributeComboBox = QComboBox(self.scrollAreaWidgetContents_4)
+        self.archetypeAttributeComboBox.setObjectName(u"archetypeAttributeComboBox")
+
+        self.gridLayout_6.addWidget(self.archetypeAttributeComboBox, 1, 0, 1, 1)
+
+        self.label_65 = QLabel(self.scrollAreaWidgetContents_4)
+        self.label_65.setObjectName(u"label_65")
+
+        self.gridLayout_6.addWidget(self.label_65, 0, 0, 1, 2)
+
+        self.verticalSpacer_2 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayout_6.addItem(self.verticalSpacer_2, 2, 0, 1, 1)
+
+        self.scrollArea_2.setWidget(self.scrollAreaWidgetContents_4)
         self.elementEditor.addWidget(self.archetypeEditor)
 
         self.formLayout_2.setWidget(0, QFormLayout.ItemRole.FieldRole, self.elementEditor)
@@ -2317,8 +2353,8 @@ class Ui_MainWindow(object):
         self.label_63.setText(QCoreApplication.translate("MainWindow", u"Horizontal Power:", None))
         self.label_64.setText(QCoreApplication.translate("MainWindow", u"Vertical Power:", None))
         self.archetypeExplosion.setText(QCoreApplication.translate("MainWindow", u"Explosion?", None))
-        self.archetypeCausesFire.setText(QCoreApplication.translate("MainWindow", u"Causes Fire?", None))
-        self.checkBox_3.setText("")
+        self.label_79.setText(QCoreApplication.translate("MainWindow", u"Causes Fire?", None))
+        self.archetypeCausesFire.setText("")
         self.label_66.setText(QCoreApplication.translate("MainWindow", u"Fuse:", None))
         self.label_67.setText(QCoreApplication.translate("MainWindow", u"Power:", None))
         self.archetypeContactDamage.setText(QCoreApplication.translate("MainWindow", u"Contact Damage?", None))
@@ -2326,6 +2362,9 @@ class Ui_MainWindow(object):
         self.label_69.setText(QCoreApplication.translate("MainWindow", u"Attribute to Source?", None))
         self.label_70.setText(QCoreApplication.translate("MainWindow", u"Damage Type:", None))
         self.archetypeAttributeToSource.setText("")
+        self.archetypeConfirmButton.setText(QCoreApplication.translate("MainWindow", u"Confirm Archetype", None))
+        self.archetypeAttributeButton.setText("")
+        self.label_65.setText(QCoreApplication.translate("MainWindow", u"Attribute", None))
         self.menuNew_Element.setTitle(QCoreApplication.translate("MainWindow", u"New Element", None))
         self.menuSave.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuTools.setTitle(QCoreApplication.translate("MainWindow", u"Tools", None))

@@ -191,6 +191,7 @@ class ProjectManager():
         self.paintings = {}
         self.structures = {}
         self.equipment = {}
+        self.archetypes = {}
 
         self.exists = {}
 
@@ -203,6 +204,7 @@ class ProjectManager():
             self.paintings_tree = QTreeWidgetItem(self.ui.elementViewer, ["Paintings"])
             self.structures_tree = QTreeWidgetItem(self.ui.elementViewer, ["Structures"])
             self.equipment_tree = QTreeWidgetItem(self.ui.elementViewer, ["Equipment"])
+            self.archetypes_tree = QTreeWidgetItem(self.ui.elementViewer, ["Archetypes"])
 
         self.blockTexture = {}
         self.itemTexture = None
@@ -272,6 +274,8 @@ class ProjectManager():
             json.dump(self.structures, file, indent=4)
         with open(projectDirectory / 'equipment.json', 'w') as file:
             json.dump(self.equipment, file, indent=4)
+        with open(projectDirectory / 'archetypes.json', 'w') as file:
+            json.dump(self.archetypes, file, indent=4)
         
         os.makedirs(projectDirectory / 'assets', exist_ok=True)
         os.makedirs(projectDirectory / 'assets' / 'blocks', exist_ok=True)
@@ -279,6 +283,7 @@ class ProjectManager():
         os.makedirs(projectDirectory / 'assets' / 'paintings', exist_ok=True)
         os.makedirs(projectDirectory / 'assets' / 'structures', exist_ok=True)
         os.makedirs(projectDirectory / 'assets' / 'equipment', exist_ok=True)
+        os.makedirs(projectDirectory / 'assets' / 'archetypes', exist_ok=True)
 
         manifestPath = self.mainDirectory / 'workspaces' / 'manifest.json'
 
@@ -356,6 +361,8 @@ class ProjectManager():
             self.structures = json.load(file)
         with open(projectDirectory / 'equipment.json', 'r') as file:
             self.equipment = json.load(file)
+        with open(projectDirectory / 'archetypes.json', 'r') as file:
+            self.archetypes = json.load(file)
         
         try:
             self.projectList.close()
@@ -379,4 +386,7 @@ class ProjectManager():
         
         for item in self.equipment:
             QTreeWidgetItem(self.equipment_tree, [self.equipment[item]["name"]])
+        
+        for item in self.archetypes:
+            QTreeWidgetItem(self.archetypes_tree, [self.archetypes[item]["name"]])
     

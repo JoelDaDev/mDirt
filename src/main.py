@@ -346,6 +346,8 @@ class App(QMainWindow):
             self.editStructure(item.text(column))
         elif element_type.text(column) == "Equipment":
             self.editEquipment(item.text(column))
+        elif element_type.text(column) == "Archetypes":
+            self.editArchetype(item.text(column))
 
     #######################
     # BLOCKS TAB          #
@@ -1193,7 +1195,9 @@ class App(QMainWindow):
         self.ui.attributeWidgetLayout.removeWidget(attribute)
         attribute.setParent(None)
         attribute.deleteLater()
-        
+    
+    def editArchetype(self, archetype):
+        pass
 
     #######################
     # TOOLS               #

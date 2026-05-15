@@ -1068,7 +1068,7 @@ class App(QMainWindow):
         if self.project.equipmentTexture["boots"] == None: alert("Item Texture: Boots is empty!"); return 0
         if self.project.equipmentModel["h"] == None: alert("Model Texture: Humanoid is empty!"); return 0
         if self.project.equipmentModel["h_l"] == None: alert("Model Texture: Humanoid Leggings is empty!"); return 0
-        if self.ui.groupBox.isChecked:
+        if self.ui.groupBox.isChecked():
             if self.project.equipmentTexture["horseArmor"] == None: alert("Item Texture: Horse is empty!"); return 0
             if self.project.equipmentModel["horseArmor"] == None: alert("Model Texture: Horse is empty!"); return 0
 
@@ -1252,7 +1252,7 @@ class App(QMainWindow):
         return 1
 
     def addArchetype(self): 
-        if self.validateArchetypeDetails == 0: return
+        if self.validateArchetypeDetails() == 0: return
         
         if self.ui.archetypeBuoyant.isChecked():
             val = "true"
@@ -1317,7 +1317,48 @@ class App(QMainWindow):
         alert("Element added successfully!")
 
     def editArchetype(self, archetype):
-        pass
+        properties = self.project.archetypes[archetype]
+
+        for attr in list(self.archetypeAttributes.keys()):
+            self.removeAttribute(self.archetypeAttributes[attr], attr, 0)
+        self.archetypeAttributes = {}
+
+        self.populateArchetypeAttributes()
+        self.populateArchetypeDamageTypes()
+
+        self.ui.archetypeName.setText(properties["name"])
+        self.ui.archetypeItem.setText(properties["item"])
+        self.ui.archetypeBuoyant.setChecked(properties["buoyant"] == "true")
+        self.ui.archetypeVerticalPower.setValue(properties["vertical_power"])
+        self.ui.archetypeHorizontalPower.setValue(properties["horizontal_power"])
+
+        has_explosion = "explosion" in properties
+        self.ui.archetypeExplosion.setChecked(has_explosion)
+        if has_explosion:
+            self.ui.archetypeCausesFire.setChecked(properties["explosion"]["causes_fire"] == "true")
+            self.ui.archetypeFuse.setValue(properties["explosion"]["fuse"])
+            self.ui.archetypePower.setValue(properties["explosion"]["power"])
+
+        has_contact = "contact_damage" in properties
+        self.ui.archetypeContactDamage.setChecked(has_contact)
+        if has_contact:
+            self.ui.archetypeAmount.setValue(properties["contact_damage"]["amount"])
+            self.ui.archetypeAttributeToSource.setChecked(properties["contact_damage"]["attr_to_source"] == "true")
+            self.ui.archetypeDamgeType.setCurrentText(properties["contact_damage"]["damage_type"])
+
+        for key, attr_data in properties.get("attributes", {}).items():
+            newAttribute = AttributeWidget()
+            self.archetypeAttributes[key] = newAttribute
+            newAttribute.ui.attributeLabel.setText(key)
+            newAttribute.ui.amountSpinBox.setValue(abs(attr_data["amount"]))
+            newAttribute.ui.attributeSign.setCurrentText("-" if attr_data["amount"] < 0 else "+")
+            newAttribute.ui.amountOperationBox.setCurrentText(attr_data["operation"])
+            self.ui.attributeWidgetLayout.addWidget(newAttribute)
+            newAttribute.ui.attributeRemove.clicked.connect(
+                lambda _, n=newAttribute, k=key: self.removeAttribute(n, k, 1)
+            )
+
+        self.ui.elementEditor.setCurrentIndex(ElementPage.ARCHETYPE_GENERATOR)
 
     #######################
     # TOOLS               #
@@ -1430,7 +1471,8 @@ class App(QMainWindow):
             self.project.data,
             loc,
             self.project.structures,
-            self.project.equipment
+            self.project.equipment,
+            self.project.archetypes
         )
 
         generator.generateDatapack()

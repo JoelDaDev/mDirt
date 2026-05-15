@@ -9,7 +9,7 @@ from . import structures
 from . import equipment
 
 class Generator():
-    def __init__(self, app_ver, packDetails, dataFormat, resourceFormat, header, blocks, items, recipes, paintings, data, directory, structures=None, equipment=None):
+    def __init__(self, app_ver, packDetails, dataFormat, resourceFormat, header, blocks, items, recipes, paintings, data, directory, structures=None, equipment=None, archetypes=None):
         self.APP_VERSION = app_ver
         self.packDetails = packDetails
         self.dataFormat = dataFormat
@@ -21,6 +21,7 @@ class Generator():
         self.paintings = paintings
         self.structures = structures
         self.equipment = equipment
+        self.archetypes = archetypes
         self.outputDir = directory
 
     def generateResourcePack(self):

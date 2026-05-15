@@ -29,6 +29,12 @@ from settings import SettingsManager
 from core.project_manager import ProjectManager
 from core.settings_controller import SettingsController
 
+class AttributeWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.ui = AttributeForm()
+        self.ui.setupUi(self)
+
 class App(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -233,6 +239,11 @@ class App(QMainWindow):
         self.dropHorseModel = DropHandler(self.ui.horseArmorModel, '.png', lambda path: self.addEquipmentTexture("horseArmor1", None, self.ui.horseArmorModelLabel, path))
 
         self.ui.equipmentConfirmButton.clicked.connect(self.addEquipment)
+
+        # Archetype Connections
+        self.archetypeAttributes = {}
+
+        self.ui.archetypeAttributeButton.clicked.connect(self.addAttribute)
 
         # Text Generator Connections
         self.ui.textGeneratorBold.clicked.connect(self.text_generator.tg_ToggleBold)
@@ -1150,6 +1161,7 @@ class App(QMainWindow):
     def newArchetype(self):
         self.unsavedChanges = True
         self.populateArchetypeAttributes()
+        self.populateArchetypeDamageTypes()
         self.ui.elementEditor.setCurrentIndex(ElementPage.ARCHETYPE_GENERATOR)
 
     def populateArchetypeAttributes(self):
@@ -1157,6 +1169,31 @@ class App(QMainWindow):
 
         for attribute in self.project.data["attributes"]:
             self.ui.archetypeAttributeComboBox.addItem(attribute)
+    
+    def populateArchetypeDamageTypes(self):
+        self.ui.archetypeDamgeType.clear()
+
+        for damageType in self.project.data["damage_types"]:
+            self.ui.archetypeDamgeType.addItem(damageType)
+
+    def addAttribute(self):
+        attributeName = self.ui.archetypeAttributeComboBox.currentText()
+        if attributeName in self.archetypeAttributes: return
+
+        newAttribute = AttributeWidget()
+        self.archetypeAttributes[attributeName] = newAttribute
+        
+        newAttribute.ui.attributeLabel.setText(attributeName)
+        
+        self.ui.attributeWidgetLayout.addWidget(newAttribute)
+        newAttribute.ui.attributeRemove.clicked.connect(lambda: self.removeAttribute(newAttribute, attributeName))
+    
+    def removeAttribute(self, attribute, attributeName):
+        self.archetypeAttributes.pop(attributeName, None)
+        self.ui.attributeWidgetLayout.removeWidget(attribute)
+        attribute.setParent(None)
+        attribute.deleteLater()
+        
 
     #######################
     # TOOLS               #

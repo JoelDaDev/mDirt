@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'uiAJQcrr.ui'
+## Form generated from reading UI file 'uieqAFNz.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.11.0
 ##
@@ -1515,7 +1515,7 @@ class Ui_MainWindow(object):
         self.archetypeEditor.setObjectName(u"archetypeEditor")
         self.formLayoutWidget_4 = QWidget(self.archetypeEditor)
         self.formLayoutWidget_4.setObjectName(u"formLayoutWidget_4")
-        self.formLayoutWidget_4.setGeometry(QRect(10, 10, 409, 561))
+        self.formLayoutWidget_4.setGeometry(QRect(10, 10, 381, 561))
         self.formLayout_12 = QFormLayout(self.formLayoutWidget_4)
         self.formLayout_12.setObjectName(u"formLayout_12")
         self.formLayout_12.setContentsMargins(0, 0, 0, 0)
@@ -1649,24 +1649,24 @@ class Ui_MainWindow(object):
 
         self.scrollArea_2 = QScrollArea(self.archetypeEditor)
         self.scrollArea_2.setObjectName(u"scrollArea_2")
-        self.scrollArea_2.setGeometry(QRect(430, 10, 281, 561))
+        self.scrollArea_2.setGeometry(QRect(400, 10, 311, 561))
         self.scrollArea_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_4 = QWidget()
         self.scrollAreaWidgetContents_4.setObjectName(u"scrollAreaWidgetContents_4")
-        self.scrollAreaWidgetContents_4.setGeometry(QRect(0, 0, 281, 561))
+        self.scrollAreaWidgetContents_4.setGeometry(QRect(0, 0, 311, 561))
         self.gridLayout_6 = QGridLayout(self.scrollAreaWidgetContents_4)
         self.gridLayout_6.setObjectName(u"gridLayout_6")
+        self.archetypeAttributeComboBox = QComboBox(self.scrollAreaWidgetContents_4)
+        self.archetypeAttributeComboBox.setObjectName(u"archetypeAttributeComboBox")
+
+        self.gridLayout_6.addWidget(self.archetypeAttributeComboBox, 1, 0, 1, 1)
+
         self.archetypeAttributeButton = QPushButton(self.scrollAreaWidgetContents_4)
         self.archetypeAttributeButton.setObjectName(u"archetypeAttributeButton")
         icon7 = QIcon(QIcon.fromTheme(QIcon.ThemeIcon.ContactNew))
         self.archetypeAttributeButton.setIcon(icon7)
 
         self.gridLayout_6.addWidget(self.archetypeAttributeButton, 1, 1, 1, 1)
-
-        self.archetypeAttributeComboBox = QComboBox(self.scrollAreaWidgetContents_4)
-        self.archetypeAttributeComboBox.setObjectName(u"archetypeAttributeComboBox")
-
-        self.gridLayout_6.addWidget(self.archetypeAttributeComboBox, 1, 0, 1, 1)
 
         self.label_65 = QLabel(self.scrollAreaWidgetContents_4)
         self.label_65.setObjectName(u"label_65")
@@ -1675,7 +1675,12 @@ class Ui_MainWindow(object):
 
         self.verticalSpacer_2 = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.gridLayout_6.addItem(self.verticalSpacer_2, 2, 0, 1, 1)
+        self.gridLayout_6.addItem(self.verticalSpacer_2, 3, 0, 1, 1)
+
+        self.attributeWidgetLayout = QVBoxLayout()
+        self.attributeWidgetLayout.setObjectName(u"attributeWidgetLayout")
+
+        self.gridLayout_6.addLayout(self.attributeWidgetLayout, 2, 0, 1, 1)
 
         self.scrollArea_2.setWidget(self.scrollAreaWidgetContents_4)
         self.elementEditor.addWidget(self.archetypeEditor)

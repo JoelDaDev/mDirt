@@ -1,0 +1,23 @@
+{
+    "versions": {
+        "26.1": {
+            "aliases": [
+                "26.1",
+                "26.1.1",
+                "26.1.2"
+            ],
+            "data_format": 101.1,
+            "resource_format": 84.0
+        },
+        "26.2": {
+            "aliases": [
+                "26.2"
+            ],
+            "data_format": 105.1,
+            "resource_format": 87.0,
+            "enable_elements": [
+                "sulfur_cube_archetype"
+            ]
+        }
+    }
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+internal_todo.txt
+*.spec
+build/*
+dist/*
+settings.json
+*.log
+exports/*
+v3.0.md
+venv/
+workspaces/

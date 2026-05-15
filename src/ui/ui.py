@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'uieqAFNz.ui'
+## Form generated from reading UI file 'uiyFJZhr.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.11.0
 ##
@@ -1515,56 +1515,56 @@ class Ui_MainWindow(object):
         self.archetypeEditor.setObjectName(u"archetypeEditor")
         self.formLayoutWidget_4 = QWidget(self.archetypeEditor)
         self.formLayoutWidget_4.setObjectName(u"formLayoutWidget_4")
-        self.formLayoutWidget_4.setGeometry(QRect(10, 10, 381, 561))
+        self.formLayoutWidget_4.setGeometry(QRect(10, 10, 381, 411))
         self.formLayout_12 = QFormLayout(self.formLayoutWidget_4)
         self.formLayout_12.setObjectName(u"formLayout_12")
         self.formLayout_12.setContentsMargins(0, 0, 0, 0)
         self.label_61 = QLabel(self.formLayoutWidget_4)
         self.label_61.setObjectName(u"label_61")
 
-        self.formLayout_12.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_61)
+        self.formLayout_12.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_61)
 
         self.archetypeItem = QLineEdit(self.formLayoutWidget_4)
         self.archetypeItem.setObjectName(u"archetypeItem")
 
-        self.formLayout_12.setWidget(0, QFormLayout.ItemRole.FieldRole, self.archetypeItem)
+        self.formLayout_12.setWidget(2, QFormLayout.ItemRole.FieldRole, self.archetypeItem)
 
         self.label_62 = QLabel(self.formLayoutWidget_4)
         self.label_62.setObjectName(u"label_62")
 
-        self.formLayout_12.setWidget(1, QFormLayout.ItemRole.LabelRole, self.label_62)
+        self.formLayout_12.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_62)
 
         self.archetypeBuoyant = QCheckBox(self.formLayoutWidget_4)
         self.archetypeBuoyant.setObjectName(u"archetypeBuoyant")
 
-        self.formLayout_12.setWidget(1, QFormLayout.ItemRole.FieldRole, self.archetypeBuoyant)
+        self.formLayout_12.setWidget(3, QFormLayout.ItemRole.FieldRole, self.archetypeBuoyant)
 
         self.label_63 = QLabel(self.formLayoutWidget_4)
         self.label_63.setObjectName(u"label_63")
 
-        self.formLayout_12.setWidget(2, QFormLayout.ItemRole.LabelRole, self.label_63)
+        self.formLayout_12.setWidget(4, QFormLayout.ItemRole.LabelRole, self.label_63)
 
         self.archetypeHorizontalPower = QDoubleSpinBox(self.formLayoutWidget_4)
         self.archetypeHorizontalPower.setObjectName(u"archetypeHorizontalPower")
         self.archetypeHorizontalPower.setDecimals(4)
 
-        self.formLayout_12.setWidget(2, QFormLayout.ItemRole.FieldRole, self.archetypeHorizontalPower)
+        self.formLayout_12.setWidget(4, QFormLayout.ItemRole.FieldRole, self.archetypeHorizontalPower)
 
         self.label_64 = QLabel(self.formLayoutWidget_4)
         self.label_64.setObjectName(u"label_64")
 
-        self.formLayout_12.setWidget(3, QFormLayout.ItemRole.LabelRole, self.label_64)
+        self.formLayout_12.setWidget(5, QFormLayout.ItemRole.LabelRole, self.label_64)
 
         self.archetypeVerticalPower = QDoubleSpinBox(self.formLayoutWidget_4)
         self.archetypeVerticalPower.setObjectName(u"archetypeVerticalPower")
         self.archetypeVerticalPower.setDecimals(4)
 
-        self.formLayout_12.setWidget(3, QFormLayout.ItemRole.FieldRole, self.archetypeVerticalPower)
+        self.formLayout_12.setWidget(5, QFormLayout.ItemRole.FieldRole, self.archetypeVerticalPower)
 
         self.archetypeExplosion = QCheckBox(self.formLayoutWidget_4)
         self.archetypeExplosion.setObjectName(u"archetypeExplosion")
 
-        self.formLayout_12.setWidget(4, QFormLayout.ItemRole.LabelRole, self.archetypeExplosion)
+        self.formLayout_12.setWidget(6, QFormLayout.ItemRole.LabelRole, self.archetypeExplosion)
 
         self.formLayout_13 = QFormLayout()
         self.formLayout_13.setObjectName(u"formLayout_13")
@@ -1599,12 +1599,12 @@ class Ui_MainWindow(object):
         self.formLayout_13.setWidget(2, QFormLayout.ItemRole.FieldRole, self.archetypePower)
 
 
-        self.formLayout_12.setLayout(4, QFormLayout.ItemRole.FieldRole, self.formLayout_13)
+        self.formLayout_12.setLayout(6, QFormLayout.ItemRole.FieldRole, self.formLayout_13)
 
         self.archetypeContactDamage = QCheckBox(self.formLayoutWidget_4)
         self.archetypeContactDamage.setObjectName(u"archetypeContactDamage")
 
-        self.formLayout_12.setWidget(5, QFormLayout.ItemRole.LabelRole, self.archetypeContactDamage)
+        self.formLayout_12.setWidget(7, QFormLayout.ItemRole.LabelRole, self.archetypeContactDamage)
 
         self.formLayout_14 = QFormLayout()
         self.formLayout_14.setObjectName(u"formLayout_14")
@@ -1640,12 +1640,22 @@ class Ui_MainWindow(object):
         self.formLayout_14.setWidget(2, QFormLayout.ItemRole.FieldRole, self.archetypeDamgeType)
 
 
-        self.formLayout_12.setLayout(5, QFormLayout.ItemRole.FieldRole, self.formLayout_14)
+        self.formLayout_12.setLayout(7, QFormLayout.ItemRole.FieldRole, self.formLayout_14)
 
         self.archetypeConfirmButton = QPushButton(self.formLayoutWidget_4)
         self.archetypeConfirmButton.setObjectName(u"archetypeConfirmButton")
 
-        self.formLayout_12.setWidget(6, QFormLayout.ItemRole.SpanningRole, self.archetypeConfirmButton)
+        self.formLayout_12.setWidget(8, QFormLayout.ItemRole.SpanningRole, self.archetypeConfirmButton)
+
+        self.label_71 = QLabel(self.formLayoutWidget_4)
+        self.label_71.setObjectName(u"label_71")
+
+        self.formLayout_12.setWidget(0, QFormLayout.ItemRole.LabelRole, self.label_71)
+
+        self.archetypeName = QLineEdit(self.formLayoutWidget_4)
+        self.archetypeName.setObjectName(u"archetypeName")
+
+        self.formLayout_12.setWidget(0, QFormLayout.ItemRole.FieldRole, self.archetypeName)
 
         self.scrollArea_2 = QScrollArea(self.archetypeEditor)
         self.scrollArea_2.setObjectName(u"scrollArea_2")
@@ -2353,23 +2363,75 @@ class Ui_MainWindow(object):
         self.potionCopy.setText("")
         self.label_60.setText(QCoreApplication.translate("MainWindow", u"Potion Name", None))
         self.label_61.setText(QCoreApplication.translate("MainWindow", u"Item:", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeItem.setToolTip(QCoreApplication.translate("MainWindow", u"An item tag containing all items that can be fed to sulfur cubes of this Archetype.", None))
+#endif // QT_CONFIG(tooltip)
+        self.archetypeItem.setText("")
+        self.archetypeItem.setPlaceholderText(QCoreApplication.translate("MainWindow", u"#minecraft:dirt", None))
         self.label_62.setText(QCoreApplication.translate("MainWindow", u"Buoyant?", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeBuoyant.setToolTip(QCoreApplication.translate("MainWindow", u"Whether or not a sulfur cube of this archetype floats in liquids.", None))
+#endif // QT_CONFIG(tooltip)
         self.archetypeBuoyant.setText("")
         self.label_63.setText(QCoreApplication.translate("MainWindow", u"Horizontal Power:", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeHorizontalPower.setToolTip(QCoreApplication.translate("MainWindow", u"A modifier to the horizontal knockback.", None))
+#endif // QT_CONFIG(tooltip)
         self.label_64.setText(QCoreApplication.translate("MainWindow", u"Vertical Power:", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeVerticalPower.setToolTip(QCoreApplication.translate("MainWindow", u"A modifier to the vertical knockback.", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.archetypeExplosion.setToolTip(QCoreApplication.translate("MainWindow", u"Whether sulfur cubes of this archetype can explode when ignited.", None))
+#endif // QT_CONFIG(tooltip)
         self.archetypeExplosion.setText(QCoreApplication.translate("MainWindow", u"Explosion?", None))
         self.label_79.setText(QCoreApplication.translate("MainWindow", u"Causes Fire?", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeCausesFire.setToolTip(QCoreApplication.translate("MainWindow", u"Whether the explosion causes fire.", None))
+#endif // QT_CONFIG(tooltip)
         self.archetypeCausesFire.setText("")
         self.label_66.setText(QCoreApplication.translate("MainWindow", u"Fuse:", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeFuse.setToolTip(QCoreApplication.translate("MainWindow", u"The fuse time in game ticks.", None))
+#endif // QT_CONFIG(tooltip)
         self.label_67.setText(QCoreApplication.translate("MainWindow", u"Power:", None))
+#if QT_CONFIG(tooltip)
+        self.archetypePower.setToolTip(QCoreApplication.translate("MainWindow", u"The power of the explosion.", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.archetypeContactDamage.setToolTip(QCoreApplication.translate("MainWindow", u"Whether sulfur cubes of this archetype will damage entities on contact.", None))
+#endif // QT_CONFIG(tooltip)
         self.archetypeContactDamage.setText(QCoreApplication.translate("MainWindow", u"Contact Damage?", None))
         self.label_68.setText(QCoreApplication.translate("MainWindow", u"Amount:", None))
         self.label_69.setText(QCoreApplication.translate("MainWindow", u"Attribute to Source?", None))
         self.label_70.setText(QCoreApplication.translate("MainWindow", u"Damage Type:", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeAmount.setToolTip(QCoreApplication.translate("MainWindow", u"The amount of damage caused.", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.archetypeAttributeToSource.setToolTip(QCoreApplication.translate("MainWindow", u"Whether the damage will be attributed to the sulfur cube.", None))
+#endif // QT_CONFIG(tooltip)
         self.archetypeAttributeToSource.setText("")
+#if QT_CONFIG(tooltip)
+        self.archetypeDamgeType.setToolTip(QCoreApplication.translate("MainWindow", u"The damage type to use.", None))
+#endif // QT_CONFIG(tooltip)
+#if QT_CONFIG(tooltip)
+        self.archetypeConfirmButton.setToolTip(QCoreApplication.translate("MainWindow", u"Add the Archetype to the project.", None))
+#endif // QT_CONFIG(tooltip)
         self.archetypeConfirmButton.setText(QCoreApplication.translate("MainWindow", u"Confirm Archetype", None))
+        self.label_71.setText(QCoreApplication.translate("MainWindow", u"Name:", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeName.setToolTip(QCoreApplication.translate("MainWindow", u"The internal name of the archetype.", None))
+#endif // QT_CONFIG(tooltip)
+        self.archetypeName.setPlaceholderText(QCoreApplication.translate("MainWindow", u"explosive", None))
+#if QT_CONFIG(tooltip)
+        self.archetypeAttributeComboBox.setToolTip(QCoreApplication.translate("MainWindow", u"A single attribute modifier.", None))
+#endif // QT_CONFIG(tooltip)
         self.archetypeAttributeButton.setText("")
-        self.label_65.setText(QCoreApplication.translate("MainWindow", u"Attribute", None))
+#if QT_CONFIG(tooltip)
+        self.label_65.setToolTip(QCoreApplication.translate("MainWindow", u"A list of attribute modifiers to apply to sulfur cubes of this archetype.", None))
+#endif // QT_CONFIG(tooltip)
+        self.label_65.setText(QCoreApplication.translate("MainWindow", u"Attributes", None))
         self.menuNew_Element.setTitle(QCoreApplication.translate("MainWindow", u"New Element", None))
         self.menuSave.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuTools.setTitle(QCoreApplication.translate("MainWindow", u"Tools", None))

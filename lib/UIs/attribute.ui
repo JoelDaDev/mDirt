@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>291</width>
+    <width>307</width>
     <height>143</height>
    </rect>
   </property>
@@ -14,25 +14,18 @@
    <string>Form</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="3" column="0">
+   <item row="3" column="1">
     <widget class="QLabel" name="label_4">
      <property name="text">
       <string>Operation</string>
      </property>
     </widget>
    </item>
-   <item row="5" column="0">
-    <widget class="QPushButton" name="attributeRemove">
-     <property name="text">
-      <string/>
-     </property>
-     <property name="icon">
-      <iconset theme="QIcon::ThemeIcon::ListRemove"/>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1">
+   <item row="3" column="2">
     <widget class="QComboBox" name="amountOperationBox">
+     <property name="toolTip">
+      <string>The operation to apply</string>
+     </property>
      <item>
       <property name="text">
        <string>add_value</string>
@@ -50,32 +43,71 @@
      </item>
     </widget>
    </item>
-   <item row="0" column="0">
+   <item row="0" column="1">
     <widget class="QLabel" name="label">
      <property name="text">
       <string>Attribute:</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="0">
+   <item row="2" column="1">
     <widget class="QLabel" name="label_3">
      <property name="text">
       <string>Amount:</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="1">
+   <item row="2" column="2">
     <widget class="QDoubleSpinBox" name="amountSpinBox">
+     <property name="toolTip">
+      <string>Amount to modify the attribute by.</string>
+     </property>
      <property name="decimals">
       <number>6</number>
      </property>
+     <property name="minimum">
+      <double>0.000000000000000</double>
+     </property>
     </widget>
    </item>
-   <item row="0" column="1">
+   <item row="0" column="2">
     <widget class="QLabel" name="attributeLabel">
+     <property name="toolTip">
+      <string>The id of the attribute to modify.</string>
+     </property>
      <property name="text">
       <string/>
      </property>
+    </widget>
+   </item>
+   <item row="6" column="2">
+    <widget class="QPushButton" name="attributeRemove">
+     <property name="toolTip">
+      <string>Remove this Attribute</string>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset theme="QIcon::ThemeIcon::ListRemove"/>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QComboBox" name="attributeSign">
+     <property name="toolTip">
+      <string>Whether the amount done to the attribute is negative or positive.</string>
+     </property>
+     <item>
+      <property name="text">
+       <string>+</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>-</string>
+      </property>
+     </item>
     </widget>
    </item>
   </layout>

@@ -3240,70 +3240,92 @@
           <x>10</x>
           <y>10</y>
           <width>381</width>
-          <height>561</height>
+          <height>411</height>
          </rect>
         </property>
         <layout class="QFormLayout" name="formLayout_12">
-         <item row="0" column="0">
+         <item row="2" column="0">
           <widget class="QLabel" name="label_61">
            <property name="text">
             <string>Item:</string>
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="archetypeItem"/>
+         <item row="2" column="1">
+          <widget class="QLineEdit" name="archetypeItem">
+           <property name="toolTip">
+            <string>An item tag containing all items that can be fed to sulfur cubes of this Archetype.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="placeholderText">
+            <string>#minecraft:dirt</string>
+           </property>
+          </widget>
          </item>
-         <item row="1" column="0">
+         <item row="3" column="0">
           <widget class="QLabel" name="label_62">
            <property name="text">
             <string>Buoyant?</string>
            </property>
           </widget>
          </item>
-         <item row="1" column="1">
+         <item row="3" column="1">
           <widget class="QCheckBox" name="archetypeBuoyant">
+           <property name="toolTip">
+            <string>Whether or not a sulfur cube of this archetype floats in liquids.</string>
+           </property>
            <property name="text">
             <string/>
            </property>
           </widget>
          </item>
-         <item row="2" column="0">
+         <item row="4" column="0">
           <widget class="QLabel" name="label_63">
            <property name="text">
             <string>Horizontal Power:</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="1">
+         <item row="4" column="1">
           <widget class="QDoubleSpinBox" name="archetypeHorizontalPower">
+           <property name="toolTip">
+            <string>A modifier to the horizontal knockback.</string>
+           </property>
            <property name="decimals">
             <number>4</number>
            </property>
           </widget>
          </item>
-         <item row="3" column="0">
+         <item row="5" column="0">
           <widget class="QLabel" name="label_64">
            <property name="text">
             <string>Vertical Power:</string>
            </property>
           </widget>
          </item>
-         <item row="3" column="1">
+         <item row="5" column="1">
           <widget class="QDoubleSpinBox" name="archetypeVerticalPower">
+           <property name="toolTip">
+            <string>A modifier to the vertical knockback.</string>
+           </property>
            <property name="decimals">
             <number>4</number>
            </property>
           </widget>
          </item>
-         <item row="4" column="0">
+         <item row="6" column="0">
           <widget class="QCheckBox" name="archetypeExplosion">
+           <property name="toolTip">
+            <string>Whether sulfur cubes of this archetype can explode when ignited.</string>
+           </property>
            <property name="text">
             <string>Explosion?</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
+         <item row="6" column="1">
           <layout class="QFormLayout" name="formLayout_13">
            <item row="0" column="0">
             <widget class="QLabel" name="label_79">
@@ -3314,6 +3336,9 @@
            </item>
            <item row="0" column="1">
             <widget class="QCheckBox" name="archetypeCausesFire">
+             <property name="toolTip">
+              <string>Whether the explosion causes fire.</string>
+             </property>
              <property name="text">
               <string/>
              </property>
@@ -3327,7 +3352,11 @@
             </widget>
            </item>
            <item row="1" column="1">
-            <widget class="QSpinBox" name="archetypeFuse"/>
+            <widget class="QSpinBox" name="archetypeFuse">
+             <property name="toolTip">
+              <string>The fuse time in game ticks.</string>
+             </property>
+            </widget>
            </item>
            <item row="2" column="0">
             <widget class="QLabel" name="label_67">
@@ -3337,18 +3366,25 @@
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QSpinBox" name="archetypePower"/>
+            <widget class="QSpinBox" name="archetypePower">
+             <property name="toolTip">
+              <string>The power of the explosion.</string>
+             </property>
+            </widget>
            </item>
           </layout>
          </item>
-         <item row="5" column="0">
+         <item row="7" column="0">
           <widget class="QCheckBox" name="archetypeContactDamage">
+           <property name="toolTip">
+            <string>Whether sulfur cubes of this archetype will damage entities on contact.</string>
+           </property>
            <property name="text">
             <string>Contact Damage?</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
+         <item row="7" column="1">
           <layout class="QFormLayout" name="formLayout_14">
            <item row="0" column="0">
             <widget class="QLabel" name="label_68">
@@ -3373,6 +3409,9 @@
            </item>
            <item row="0" column="1">
             <widget class="QDoubleSpinBox" name="archetypeAmount">
+             <property name="toolTip">
+              <string>The amount of damage caused.</string>
+             </property>
              <property name="decimals">
               <number>4</number>
              </property>
@@ -3380,20 +3419,47 @@
            </item>
            <item row="1" column="1">
             <widget class="QCheckBox" name="archetypeAttributeToSource">
+             <property name="toolTip">
+              <string>Whether the damage will be attributed to the sulfur cube.</string>
+             </property>
              <property name="text">
               <string/>
              </property>
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QComboBox" name="archetypeDamgeType"/>
+            <widget class="QComboBox" name="archetypeDamgeType">
+             <property name="toolTip">
+              <string>The damage type to use.</string>
+             </property>
+            </widget>
            </item>
           </layout>
          </item>
-         <item row="6" column="0" colspan="2">
+         <item row="8" column="0" colspan="2">
           <widget class="QPushButton" name="archetypeConfirmButton">
+           <property name="toolTip">
+            <string>Add the Archetype to the project.</string>
+           </property>
            <property name="text">
             <string>Confirm Archetype</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_71">
+           <property name="text">
+            <string>Name:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="archetypeName">
+           <property name="toolTip">
+            <string>The internal name of the archetype.</string>
+           </property>
+           <property name="placeholderText">
+            <string>explosive</string>
            </property>
           </widget>
          </item>
@@ -3422,7 +3488,11 @@
          </property>
          <layout class="QGridLayout" name="gridLayout_6">
           <item row="1" column="0">
-           <widget class="QComboBox" name="archetypeAttributeComboBox"/>
+           <widget class="QComboBox" name="archetypeAttributeComboBox">
+            <property name="toolTip">
+             <string>A single attribute modifier.</string>
+            </property>
+           </widget>
           </item>
           <item row="1" column="1">
            <widget class="QPushButton" name="archetypeAttributeButton">
@@ -3436,8 +3506,11 @@
           </item>
           <item row="0" column="0" colspan="2">
            <widget class="QLabel" name="label_65">
+            <property name="toolTip">
+             <string>A list of attribute modifiers to apply to sulfur cubes of this archetype.</string>
+            </property>
             <property name="text">
-             <string>Attribute</string>
+             <string>Attributes</string>
             </property>
            </widget>
           </item>

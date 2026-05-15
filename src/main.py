@@ -245,6 +245,8 @@ class App(QMainWindow):
 
         self.ui.archetypeAttributeButton.clicked.connect(self.addAttribute)
 
+        self.ui.archetypeConfirmButton.clicked.connect(self.addArchetype)
+
         # Text Generator Connections
         self.ui.textGeneratorBold.clicked.connect(self.text_generator.tg_ToggleBold)
         self.ui.textGeneratorItalic.clicked.connect(self.text_generator.tg_ToggleItalic)
@@ -452,7 +454,8 @@ class App(QMainWindow):
 
     def addBlock(self):
         if self.validateBlockDetails() == 0: return
-
+        if self.ui.blockDirectional.isChecked(): value = "true"
+        else: value = "false"
         self.blockProperties = {
             "name": self.ui.blockName.text(),
             "displayName": self.ui.blockDisplayName.text(),
@@ -460,7 +463,7 @@ class App(QMainWindow):
             "textures": self.blockTexture,
             "placeSound": self.ui.blockPlaceSound.text(),
             "blockDrop": self.ui.blockDropBox.currentText(),
-            "directional": self.ui.blockDirectional.isChecked(),
+            "directional": value,
             "model": self.ui.blockModel.currentText(),
         }
         if not self.blockProperties["name"] in self.project.blocks:
@@ -598,8 +601,9 @@ class App(QMainWindow):
 
     def addItem(self):
         if self.validateItemDetails() == 0: return
-
-        rightClick = {"enabled":self.ui.itemRightClickCheck.isChecked(),"function":self.ui.itemRightClickFunc.toPlainText(),"mode":self.ui.itemRightClickMode.currentText().lower()}
+        if self.ui.itemRightClickCheck.isChecked(): value = "true"
+        else: value = "false"
+        rightClick = {"enabled":value,"function":self.ui.itemRightClickFunc.toPlainText(),"mode":self.ui.itemRightClickMode.currentText().lower()}
 
         self.itemProperties = {
             "name": self.ui.itemName.text(),
@@ -747,12 +751,21 @@ class App(QMainWindow):
             mode = "stonecutting"
             outputCount = self.ui.stoneCuttingCount.value()
 
+        if self.ui.exactlyRadio.isChecked():
+            exacVal = "true"
+        else:
+            exacVal = "false"
+        if self.ui.shapelessRadio.isChecked():
+            shapVal = "true"
+        else:
+            shapVal = "false"
+
         self.recipeProperties = {
             "name": self.ui.recipeName.text(),
             "items": self.recipe,
             "outputCount": outputCount,
-            "exact": self.ui.exactlyRadio.isChecked(),
-            "shapeless": self.ui.shapelessRadio.isChecked(),
+            "exact": exacVal,
+            "shapeless": shapVal,
             "type": mode
         }
 
@@ -856,13 +869,16 @@ class App(QMainWindow):
 
     def addPainting(self):
         if self.validatePaintingDetails() == 0: return
+        
+        if self.ui.paintingPlaceable.isChecked(): value = "true"
+        else: value = "false"
 
         self.paintingProperties = {
             "name": self.ui.paintingName.text(),
             "displayName": self.ui.paintingDisplayName.text(),
             "width": self.ui.paintingWidth.value(),
             "height": self.ui.paintingHeight.value(),
-            "placeable": self.ui.paintingPlaceable.isChecked(),
+            "placeable": value,
             "texture": self.paintingTexture
         }
 
@@ -1092,6 +1108,10 @@ class App(QMainWindow):
 
         base_dur = self.ui.equipmentDurability.value()
 
+        if self.ui.groupBox.isChecked():
+            val = "true"
+        else: val ="false"
+
         self.project.equipmentProperties = {
             "name": self.ui.equipmentName.text(),
             "displayName": self.ui.equipmentDisplayName.text(),
@@ -1113,7 +1133,7 @@ class App(QMainWindow):
             },
             "itemTextures": self.project.equipmentTexture,
             "modelTextures": self.project.equipmentModel,
-            "includeHorse": self.ui.groupBox.isChecked()
+            "includeHorse": val
         }
 
         if not self.project.equipmentProperties["name"] in self.project.equipment:
@@ -1188,14 +1208,114 @@ class App(QMainWindow):
         newAttribute.ui.attributeLabel.setText(attributeName)
         
         self.ui.attributeWidgetLayout.addWidget(newAttribute)
-        newAttribute.ui.attributeRemove.clicked.connect(lambda: self.removeAttribute(newAttribute, attributeName))
+        newAttribute.ui.attributeRemove.clicked.connect(lambda: self.removeAttribute(newAttribute, attributeName, 1))
     
-    def removeAttribute(self, attribute, attributeName):
-        self.archetypeAttributes.pop(attributeName, None)
+    def removeAttribute(self, attribute, attributeName, mode):
+        if mode: self.archetypeAttributes.pop(attributeName, None)
         self.ui.attributeWidgetLayout.removeWidget(attribute)
         attribute.setParent(None)
         attribute.deleteLater()
     
+    def clearArchetypeFields(self):
+        FieldResetter.clear_labels(
+            self.ui.archetypeName,
+            self.ui.archetypeItem
+        )
+        FieldResetter.reset_spin_boxes(
+            self.ui.archetypeHorizontalPower,
+            self.ui.archetypeVerticalPower,
+            self.ui.archetypeFuse,
+            self.ui.archetypePower,
+            self.ui.archetypeAmount
+        )
+        FieldResetter.reset_combo_boxes(
+            self.ui.archetypeDamgeType,
+            self.ui.archetypeAttributeComboBox
+        )
+        FieldResetter.uncheck_boxes(
+            self.ui.archetypeBuoyant,
+            self.ui.archetypeExplosion,
+            self.ui.archetypeContactDamage,
+            self.ui.archetypeCausesFire,
+            self.ui.archetypeAttributeToSource
+        )
+
+        for attribute in self.archetypeAttributes:
+            self.removeAttribute(self.archetypeAttributes[attribute], attribute, 0)
+        self.archetypeAttributes = {}
+
+    def validateArchetypeDetails(self):
+        if not FieldValidator.validate_text_field(self.ui.archetypeName, "abcdefghijklmnopqrstuvwxyz _-!0123456789", "Archetype Name"):
+            return 0
+        if not FieldValidator.validate_text_field(self.ui.archetypeItem, "#abcdefghijklmnopqrstuvwxyz _-!0123456789", "Archetype Item"):
+            return 0
+        return 1
+
+    def addArchetype(self): 
+        if self.validateArchetypeDetails == 0: return
+        
+        if self.ui.archetypeBuoyant.isChecked():
+            val = "true"
+        else: val = "false"
+
+        if self.ui.archetypeCausesFire.isChecked():
+            fire = "true"
+        else: fire = "false"
+
+        if self.ui.archetypeAttributeToSource.isChecked():
+            attrsrc = "true"
+        else: attrsrc = "false"
+
+        self.archetypeProperties = {
+            "name": self.ui.archetypeName.text(),
+            "item": self.ui.archetypeItem.text(),
+            "buoyant": val,
+            "vertical_power": self.ui.archetypeVerticalPower.value(),
+            "horizontal_power": self.ui.archetypeHorizontalPower.value()
+        }
+
+        if self.ui.archetypeExplosion.isChecked():
+            explosion = {
+                "causes_fire": fire,
+                "fuse": self.ui.archetypeFuse.value(),
+                "power": self.ui.archetypePower.value()
+            }
+            self.archetypeProperties["explosion"] = explosion
+        
+        if self.ui.archetypeContactDamage.isChecked():
+            contact_damage = {
+                "amount": self.ui.archetypeAmount.value(),
+                "attr_to_source": attrsrc,
+                "damage_type": self.ui.archetypeDamgeType.currentText()
+            }
+            self.archetypeProperties["contact_damage"] = contact_damage
+
+        attributes = {}
+        for key in self.archetypeAttributes:
+            attriUI = self.archetypeAttributes[key].ui
+            sign = attriUI.attributeSign.currentText()
+            if sign == '-': sign = -1
+            else: sign = 1
+            attribute = {
+                "attribute": key,
+                "id": f"minecraft:{self.project.packDetails["author"]}_{self.archetypeProperties["name"]}_{key}",
+                "amount": attriUI.amountSpinBox.value() * sign,
+                "operation": attriUI.amountOperationBox.currentText()
+            }
+            attributes[key] = attribute
+        
+        self.archetypeProperties["attributes"] = attributes
+        
+        if not self.archetypeProperties["name"] in self.project.archetypes:
+            QTreeWidgetItem(self.project.archetypes_tree, [self.archetypeProperties["name"]])
+        
+        self.project.archetypes[self.archetypeProperties["name"]] = self.archetypeProperties
+
+        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
+        self.clearArchetypeFields()
+
+        alert("Element added successfully!")
+
     def editArchetype(self, archetype):
         pass
 

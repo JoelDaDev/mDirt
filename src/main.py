@@ -19,6 +19,7 @@ from utils.drop_handler import DropHandler
 
 import ui.select_item as select_item
 from ui.ui import Ui_MainWindow
+from ui.ui_attribute import Ui_Form as AttributeForm
 
 from generation.text_generator import TextGenerator
 from generation.potion_generator import PotionGenerator, PotionEffectWidget, PotionColorPicker

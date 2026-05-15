@@ -1247,7 +1247,7 @@ class App(QMainWindow):
     def validateArchetypeDetails(self):
         if not FieldValidator.validate_text_field(self.ui.archetypeName, "abcdefghijklmnopqrstuvwxyz _-!0123456789", "Archetype Name"):
             return 0
-        if not FieldValidator.validate_text_field(self.ui.archetypeItem, "#abcdefghijklmnopqrstuvwxyz _-!0123456789", "Archetype Item"):
+        if not FieldValidator.validate_text_field(self.ui.archetypeItem, "#abcdefghijklmnopqrstuvwxyz _-!0123456789:", "Archetype Item"):
             return 0
         return 1
 

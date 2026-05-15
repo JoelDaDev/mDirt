@@ -7,6 +7,7 @@ from . import recipes
 from . import paintings
 from . import structures
 from . import equipment
+from . import archetypes
 
 class Generator():
     def __init__(self, app_ver, packDetails, dataFormat, resourceFormat, header, blocks, items, recipes, paintings, data, directory, structures=None, equipment=None, archetypes=None):
@@ -132,6 +133,8 @@ class Generator():
         if self.structures:
             os.makedirs(os.path.join(self.namespaceDirectory, "structure"), exist_ok=True)
             os.makedirs(os.path.join(self.namespaceDirectory, "worldgen"), exist_ok=True)
+        if self.archetypes:
+            os.makedirs(os.path.join(self.namespaceDirectory, "sulfur_cube_archetypes"), exist_ok=True)
 
         # Create tags folders
         tags_function_dir = os.path.join(self.minecraftDirectory, "tags", "function")
@@ -166,6 +169,7 @@ class Generator():
         paintingGenerator = paintings.PaintingGenerator
         structureGenerator = structures.StructureGenerator
         equipmentGenerator = equipment.EquipmentGenerator
+        archetypeGenerator = archetypes.ArchetypeGenerator
 
         #######################
         # CUSTOM BLOCKS       #
@@ -256,6 +260,18 @@ class Generator():
                 self.packNamespace
             )
             equipmentGenerator.generate()
+
+        #######################
+        # CUSTOM ARCHETYPES   #
+        #######################
+
+        if self.archetypes:
+            archetypeGenerator = archetypeGenerator(
+                self.namespaceDirectory,
+                self.packNamespace,
+                self.archetypes
+            )
+            archetypeGenerator.generate()
 
         #######################
         # RESOURCE PACK       #

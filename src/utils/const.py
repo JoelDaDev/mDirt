@@ -1,6 +1,6 @@
 APP_VERSION = 'v2026.1'
 FULL_APP_VERSION = 'v2026.1-beta.1'
-LIB_URL = 'https://raw.githubusercontent.com/JoelDaDev/mDirt/main/lib'
+API_URL = 'https://joelalexander.dev/Dripstone/data'
 ISSUE_URL = 'https://github.com/JoelDaDev/mDirt/issues'
 MINECRAFT_COLORS = [
     ("Black", "#000000"),

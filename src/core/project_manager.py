@@ -41,7 +41,7 @@ class ProjectManager():
             return
 
         self.ui.statusbar.showMessage("Pulling version list...", 2000)
-        version_url = f'{LIB_URL}/version_list.json'
+        version_url = f'{API_URL}/version_list.json'
         
         try:
             response = requests.get(version_url, timeout=5)
@@ -92,7 +92,7 @@ class ProjectManager():
         self.ui.statusbar.showMessage("Pulling version data file...", 2000)
         version = self.packDetails["version"]
         local_path = self.mainDirectory / 'lib' / f'{version}_data.json'
-        url = f'{LIB_URL}/{version}_data.json'
+        url = f'{API_URL}/{version}_data.json'
 
         if not os.path.exists(local_path):
             response = requests.get(url)

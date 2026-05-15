@@ -9,8 +9,8 @@ class ModuleDownloader:
     Downloads and extracts versioned modules from the mDirt GitHub repository.
     """
 
-    REPO_URL = "https://github.com/Faith-and-Code-Technologies/mDirt"
-    MODULE_BASE = "https://raw.githubusercontent.com/Faith-and-Code-Technologies/mDirt/main/modules"
+    REPO_URL = "https://github.com/JoelDaDev/mDirt"
+    MODULE_BASE = "https://raw.githubusercontent.com/JoelDaDev/mDirt/main/modules"
 
     def __init__(self, target_dir="src/generation"):
         self.target_dir = target_dir
@@ -38,9 +38,3 @@ class ModuleDownloader:
         except zipfile.BadZipFile:
             return False
         return True
-
-
-if __name__ == "__main__":
-    downloader = ModuleDownloader()
-    version = "v1_21_3"  # Example version
-    downloader.download_and_extract(version)

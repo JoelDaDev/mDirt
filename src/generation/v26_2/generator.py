@@ -134,7 +134,7 @@ class Generator():
             os.makedirs(os.path.join(self.namespaceDirectory, "structure"), exist_ok=True)
             os.makedirs(os.path.join(self.namespaceDirectory, "worldgen"), exist_ok=True)
         if self.archetypes:
-            os.makedirs(os.path.join(self.namespaceDirectory, "sulfur_cube_archetypes"), exist_ok=True)
+            os.makedirs(os.path.join(self.namespaceDirectory, "sulfur_cube_archetype"), exist_ok=True)
 
         # Create tags folders
         tags_function_dir = os.path.join(self.minecraftDirectory, "tags", "function")

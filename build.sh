@@ -4,7 +4,7 @@ set -e
 # ================================
 # CONFIGURABLE VERSION NUMBER
 # ================================
-VERSION="v2026.1-beta.1"
+VERSION="v2026.1-beta.2"
 ZIP_NAME="mDirt-${VERSION}.zip"
 RELEASE_DIR="release"
 MAIN_APP_DIR="dist/mDirt-${VERSION}"

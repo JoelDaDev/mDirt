@@ -12,3 +12,4 @@ venv/
 workspaces/
 .claude/
 .pytest_cache/
+release/

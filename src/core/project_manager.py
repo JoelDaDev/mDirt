@@ -216,7 +216,7 @@ class ProjectManager():
 
         self.header = f"""#####################################
 #   This File Was Created By mDirt  #
-#               {APP_VERSION}              #
+#              {APP_VERSION}              #
 #    Copyright 2026 by JoelDaDev    #
 #####################################\n"""
 

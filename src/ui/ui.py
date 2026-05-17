@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'uiyFJZhr.ui'
+## Form generated from reading UI file 'uiCGENGG.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.11.0
 ##
@@ -735,7 +735,7 @@ class Ui_MainWindow(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 700, 782))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 339, 782))
         self.verticalLayout_2 = QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.label_13 = QLabel(self.scrollAreaWidgetContents)
@@ -1472,7 +1472,7 @@ class Ui_MainWindow(object):
         self.potionScrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents_3 = QWidget()
         self.scrollAreaWidgetContents_3.setObjectName(u"scrollAreaWidgetContents_3")
-        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 713, 195))
+        self.scrollAreaWidgetContents_3.setGeometry(QRect(0, 0, 96, 26))
         self.verticalLayout_4 = QVBoxLayout(self.scrollAreaWidgetContents_3)
         self.verticalLayout_4.setObjectName(u"verticalLayout_4")
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
@@ -1515,7 +1515,7 @@ class Ui_MainWindow(object):
         self.archetypeEditor.setObjectName(u"archetypeEditor")
         self.formLayoutWidget_4 = QWidget(self.archetypeEditor)
         self.formLayoutWidget_4.setObjectName(u"formLayoutWidget_4")
-        self.formLayoutWidget_4.setGeometry(QRect(10, 10, 381, 411))
+        self.formLayoutWidget_4.setGeometry(QRect(10, 10, 409, 421))
         self.formLayout_12 = QFormLayout(self.formLayoutWidget_4)
         self.formLayout_12.setObjectName(u"formLayout_12")
         self.formLayout_12.setContentsMargins(0, 0, 0, 0)
@@ -1744,7 +1744,7 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"mDirt - v2026.1 Beta 2", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"mDirt - v2026.1 Beta 3", None))
         self.actionBlock.setText(QCoreApplication.translate("MainWindow", u"Block", None))
         self.actionRecipe.setText(QCoreApplication.translate("MainWindow", u"Recipe", None))
         self.actionPainting.setText(QCoreApplication.translate("MainWindow", u"Painting", None))

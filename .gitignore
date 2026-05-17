@@ -10,3 +10,5 @@ exports/*
 v3.0.md
 venv/
 workspaces/
+.claude/
+.pytest_cache/

@@ -1,4 +1,5 @@
-from PySide6.QtGui import QFont, Qt
+from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt
 from utils.enums import ElementPage
 from utils.alert import alert
 from pathlib import Path

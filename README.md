@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://joeldadev.github.io/mDirt/" target="_blank">
+  <a href="https://joelalexander.dev/mDirt/" target="_blank">
     🌐 Visit the mDirt Website
   </a>
 </p>

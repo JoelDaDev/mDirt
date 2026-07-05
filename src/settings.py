@@ -45,10 +45,16 @@ class SettingsManager:
         if os.path.exists(self.settings_path):
             try:
                 with open(self.settings_path, "r") as file:
-                    return json.load(file)
+                    saved = json.load(file)
+                # Deep-merge: start from defaults so new keys added in updates are present
+                merged = {}
+                for category, defaults in DEFAULT_SETTINGS.items():
+                    merged[category] = {**defaults, **saved.get(category, {})}
+                return merged
             except Exception as e:
                 print(f"Failed to load settings, using defaults. Error: {e}")
-        return DEFAULT_SETTINGS.copy()
+        import copy
+        return copy.deepcopy(DEFAULT_SETTINGS)
 
     def save_settings(self):
         try:

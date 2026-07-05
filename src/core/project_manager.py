@@ -1,392 +1,367 @@
+"""
+Handles all project file I/O and version management.
+Contains no UI logic — receives a Project model and a UI reference only
+for status-bar messages and the element-tree widget.
+"""
 import datetime
 import json
 import os
+import string
+
 import requests
-import string
-import string
+from PySide6.QtWidgets import QWidget, QMessageBox, QTreeWidgetItem
 
-from PySide6.QtWidgets import QWidget, QTreeWidgetItem, QMessageBox
-
+from models.project import Project, PackDetails
+from module import ModuleDownloader
+from utils.alert import alert
+from utils.const import API_URL, ISSUE_URL, APP_VERSION
 from utils.field_validator import FieldValidator
 from utils.enums import ElementPage
-from utils.alert import alert
 
-import ui.load_project as load_project
 
-from module import ModuleDownloader
+class ProjectManager:
 
-from utils.const import *
-
-class ProjectManager():
-    def __init__(self, ui, mainDirectory, workspacePath, settings):
-        super().__init__()
+    def __init__(self, ui, main_dir, settings):
         self.ui = ui
-        self.mainDirectory = mainDirectory
-        self.workspacePath = workspacePath
+        self.main_dir = main_dir
         self.settings = settings
+        self.project = Project()
 
-    #######################
-    # SETUP PROJECT       #
-    #######################
+    # ── Version management ────────────────────────────────────────────────
 
-    def pullSupportedVersions(self, remote=True):
-        verPath = self.mainDirectory / 'lib' / 'version_list.json'
-        with open(verPath, 'r') as f:
-            versionsa = json.load(f)
-        versions = versionsa["versions"]
+    def pull_supported_versions(self, remote: bool = True):
+        ver_path = self.main_dir / "lib" / "version_list.json"
+        with open(ver_path, "r") as f:
+            local_json = json.load(f)
+        local_versions = local_json["versions"]
 
-        if remote == False:
-            self.version_json = versionsa
-            self.supportedVersions = versions
+        if not remote:
+            self.project.version_json = local_json
+            self._supported = local_versions
             return
 
-        self.ui.statusbar.showMessage("Pulling version list...", 2000)
-        version_url = f'{API_URL}/version_list.json'
-        
+        self.ui.statusbar.showMessage("Pulling version list…", 2000)
+        supported = {}
         try:
-            response = requests.get(version_url, timeout=5)
-            response.raise_for_status()
-
-            data = response.json()
-            self.version_json = data
-            supportedVersions = data.get("versions", [])
-
+            resp = requests.get(f"{API_URL}/version_list.json", timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            self.project.version_json = data
+            supported = data.get("versions", {})
         except requests.exceptions.RequestException as e:
-            alert(f'Failed to download supported versions. Error: {e}\n\nPlease relaunch mDirt and try again. If the problem persists, report it here:\n{ISSUE_URL}')
+            alert(f"Failed to fetch version list: {e}\n\nFalling back to local data.")
+            self.project.version_json = local_json
+            self._supported = local_versions
+            return
         except ValueError:
-            alert(f'Received invalid JSON from server.\n\nPlease try again or report the issue:\n{ISSUE_URL}')
-        
-        merged = {item: 'online' for item in supportedVersions}
-        merged.update({item: 'local' for item in versions})
-        self.supportedVersions = merged
+            alert("Received invalid JSON from server.\n\nFalling back to local data.")
+            self.project.version_json = local_json
+            self._supported = local_versions
+            return
 
-    def installVersionsJson(self):
-        path = self.mainDirectory / 'lib' / 'version_list.json'
-        with open(path, 'w') as f:
-            json.dump(self.version_json, f)
+        merged = {v: "online" for v in supported}
+        merged.update({v: "local" for v in local_versions})
+        self._supported = merged
 
-    def openProjectMenu(self):
-        self.pullSupportedVersions()                   # Pulls the supported version list from the server.
+    def pull_data(self):
+        """Download (if needed) the MC data JSON for the current project version."""
+        self.ui.statusbar.showMessage("Pulling version data…", 2000)
+        version = self.project.pack_details.version
+        local = self.main_dir / "lib" / f"{version}_data.json"
 
-        self.ui.packVersion.clear()
-        for version, source in self.supportedVersions.items():
-            label = f"🌐 {version}" if source == "online" else version
-            self.ui.packVersion.addItem(label)     # Adds the versions to the dropdown.
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.PROJECT_SETUP)
-        self.unsavedChanges = True
-    
-    def validatePackDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.packName, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789", "Name"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.packNamespace, "abcdefghijklmnopqrstuvwxyz_0123456789", "Namespace"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.packDescription, string.printable, "Description"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.packAuthor, "abcdefghijklmnopqrstuvwxyz_0123456789", "Author"):
-            return 0
-
-        return 1
-
-    def pullData(self, remote=True):
-        self.ui.statusbar.showMessage("Pulling version data file...", 2000)
-        version = self.packDetails["version"]
-        local_path = self.mainDirectory / 'lib' / f'{version}_data.json'
-        url = f'{API_URL}/{version}_data.json'
-
-        if not os.path.exists(local_path):
-            response = requests.get(url)
-            if response.status_code == 200:
-                os.makedirs("lib", exist_ok=True)
-                with open(local_path, "wb") as f:
-                    f.write(response.content)
-            else:
-                alert(f'Failed to download data file for version {version}. (HTTP {response.status_code}). \nCheck your internet connection, and relaunch mDirt. If the issue persists, report it here:\n{ISSUE_URL}')
-
-            try: # Opens the JSON to ensure it is not corrupted.
-                with open(local_path, "r") as f:
-                    json.load(f)
+        if not local.exists():
+            url = f"{API_URL}/{version}_data.json"
+            resp = requests.get(url)
+            if resp.status_code != 200:
+                alert(
+                    f"Failed to download data for version {version} (HTTP {resp.status_code}).\n"
+                    f"Check your connection and try again."
+                )
+                return
+            local.write_bytes(resp.content)
+            try:
+                json.loads(local.read_text())
             except json.JSONDecodeError:
-                os.remove(local_path)
-                alert(f'Downloaded data file is corrupt or invalid JSON.\nCheck your internet connection, and relaunch mDirt. If the issue persists, report it here:\n{ISSUE_URL}')
-        
-            self.grabModule()
+                local.unlink()
+                alert("Downloaded data file is corrupt. Try again or report this issue.")
+                return
+            self._grab_module()
 
-    def grabModule(self):
-        self.ui.statusbar.showMessage("Pulling version module...", 2000)
-        version = f'v{self.packDetails["version"].replace(".", "_")}'
-        dir = self.mainDirectory / 'src' / 'generation'
-        self.moduleGrab = ModuleDownloader(target_dir=dir)
-        self.moduleGrab.download_and_extract(version)
-        
-    def newProject(self):
-        if self.validatePackDetails() == 0: return      # Make sure all fields aren't empty and only contain valid characters.
-        
-        if '🌐' in self.ui.packVersion.currentText():
-            remote = True
-        else: remote = False
+        with open(local, "r") as f:
+            self.project.mc_data = json.load(f)
 
-        if remote:
-            getRemote = QMessageBox.question(
-                self,
+    def _grab_module(self):
+        self.ui.statusbar.showMessage("Pulling generator module…", 2000)
+        version = f'v{self.project.pack_details.version.replace(".", "_")}'
+        target = self.main_dir / "src" / "generation"
+        downloader = ModuleDownloader(target_dir=str(target))
+        downloader.download_and_extract(version)
+
+    # ── Project setup UI ──────────────────────────────────────────────────
+
+    def open_project_menu(self):
+        self.pull_supported_versions(remote=True)
+        self.ui.packVersion.clear()
+        for version, source in self._supported.items():
+            label = f"🌐 {version}" if source == "online" else version
+            self.ui.packVersion.addItem(label)
+        self.ui.elementEditor.setCurrentIndex(ElementPage.PROJECT_SETUP)
+
+    def validate_pack_details(self) -> bool:
+        ok = True
+        ok &= FieldValidator.validate_text_field(
+            self.ui.packName,
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789",
+            "Name",
+        )
+        ok &= FieldValidator.validate_text_field(
+            self.ui.packNamespace, "abcdefghijklmnopqrstuvwxyz_0123456789", "Namespace"
+        )
+        ok &= FieldValidator.validate_text_field(
+            self.ui.packDescription, string.printable, "Description"
+        )
+        ok &= FieldValidator.validate_text_field(
+            self.ui.packAuthor, "abcdefghijklmnopqrstuvwxyz_0123456789", "Author"
+        )
+        return ok
+
+    def new_project(self):
+        if not self.validate_pack_details():
+            return
+
+        raw_version = self.ui.packVersion.currentText()
+        is_remote = raw_version.startswith("🌐")
+        version = raw_version.removeprefix("🌐 ")
+
+        if is_remote:
+            answer = QMessageBox.question(
+                None,
                 "Confirm Remote Download",
-                "The version you have selected is not installed. Would you like to install it?",
+                "That version is not installed locally. Download it now?",
                 QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
+                QMessageBox.Yes,
             )
-            if getRemote == QMessageBox.Yes:
-                self.packDetails = {
-                    "name": self.ui.packName.text(),
-                    "namespace": self.ui.packNamespace.text(),
-                    "description": self.ui.packDescription.text(),
-                    "author": self.ui.packAuthor.text(),
-                    "version": self.ui.packVersion.currentText().removeprefix('🌐 ')
-                }
+            if answer != QMessageBox.Yes:
+                QMessageBox.information(None, "Cancelled", "Select a different version.")
+                return
+            self._install_versions_json()
 
-                self.installVersionsJson()
-                self.pullData()
-                self.setupProjectData()
-
-                self.saveProjectAs()
-                self.ui.menuNew_Element.setEnabled(True) # Enable the Element buttons so user can add things to their pack
-                self.ui.menuTools.setEnabled(True)
-
-                self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-                self.ui.textEdit.setHtml(f'<h1>Welcome to mDirt. Create a new Element to get started.</h1>')
-            
-            else:
-                QMessageBox.information(self, 'Remote Download Cancelled',
-                                        'Remote Download Cancelled. Please select a different version.')
-
-        else:
-            self.packDetails = {
-                    "name": self.ui.packName.text(),
-                    "namespace": self.ui.packNamespace.text(),
-                    "description": self.ui.packDescription.text(),
-                    "author": self.ui.packAuthor.text(),
-                    "version": self.ui.packVersion.currentText()
-                }
-            self.setupProjectData()
-            self.saveProjectAs()
-            self.ui.menuNew_Element.setEnabled(True) # Enable the Element buttons so user can add things to their pack
-            self.ui.menuTools.setEnabled(True)
-            self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-            self.ui.textEdit.setHtml(f'<h1>Welcome to mDirt. Create a new Element to get started.</h1>')
-        
-        self.enableVersionedElements()
-
-    def setupProjectData(self):
-        with open(f'{self.mainDirectory}/lib/{self.packDetails["version"]}_data.json', "r") as f:
-            self.data = json.load(f)
-        
-        self.dataFormat = self.version_json["versions"][self.packDetails["version"]]["data_format"]
-        self.resourceFormat = self.version_json["versions"][self.packDetails["version"]]["resource_format"]
+        self.project.pack_details = PackDetails(
+            name=self.ui.packName.text(),
+            namespace=self.ui.packNamespace.text(),
+            description=self.ui.packDescription.text(),
+            author=self.ui.packAuthor.text(),
+            version=version,
+        )
+        self.pull_data()
+        self._setup_project_data()
+        self.save()
 
         self.ui.menuNew_Element.setEnabled(True)
         self.ui.menuTools.setEnabled(True)
+        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
+        self.ui.textEdit.setHtml("<h1>Welcome to mDirt. Create a new Element to get started.</h1>")
+        self.update_versioned_elements()
 
-        self.blocks = {}
-        self.items = {}
-        self.recipes = {}
-        self.paintings = {}
-        self.structures = {}
-        self.equipment = {}
-        self.archetypes = {}
+    def _install_versions_json(self):
+        path = self.main_dir / "lib" / "version_list.json"
+        with open(path, "w") as f:
+            json.dump(self.project.version_json, f)
 
-        self.exists = {}
+    # ── Project data initialisation ───────────────────────────────────────
 
-        try:
-            self.blocks_tree
-        except:
-            self.blocks_tree = QTreeWidgetItem(self.ui.elementViewer, ["Blocks"])
-            self.items_tree = QTreeWidgetItem(self.ui.elementViewer, ["Items"])
-            self.recipes_tree = QTreeWidgetItem(self.ui.elementViewer, ["Recipes"])
-            self.paintings_tree = QTreeWidgetItem(self.ui.elementViewer, ["Paintings"])
-            self.structures_tree = QTreeWidgetItem(self.ui.elementViewer, ["Structures"])
-            self.equipment_tree = QTreeWidgetItem(self.ui.elementViewer, ["Equipment"])
-            self.archetypes_tree = QTreeWidgetItem(self.ui.elementViewer, ["Archetypes"])
+    def _setup_project_data(self):
+        version = self.project.pack_details.version
+        data_path = self.main_dir / "lib" / f"{version}_data.json"
+        with open(data_path, "r") as f:
+            self.project.mc_data = json.load(f)
 
-        self.blockTexture = {}
-        self.itemTexture = None
-        self.recipe = {}
-        self.paintingTexture = None
-        self.structure = None
-        self.equipmentTexture = {}
-        self.equipmentModel = {}
+        ver_info = self.project.version_json["versions"][version]
+        self.project.data_format = ver_info["data_format"]
+        self.project.resource_format = ver_info["resource_format"]
+        self.project.reset_elements()
+        self.project.is_loaded = True
+        self.project.header = (
+            "#####################################\n"
+            f"#   This File Was Created By mDirt  #\n"
+            f"#              {APP_VERSION}              #\n"
+            "#    Copyright 2026 by JoelDaDev    #\n"
+            "#####################################\n"
+        )
 
-        self.header = f"""#####################################
-#   This File Was Created By mDirt  #
-#              {APP_VERSION}              #
-#    Copyright 2026 by JoelDaDev    #
-#####################################\n"""
+        self._ensure_trees()
 
-    def enableVersionedElements(self):
+    def _ensure_trees(self):
+        """Create element-category tree items if they don't exist yet."""
+        if self.project.trees:
+            return
+        categories = ["blocks", "items", "recipes", "paintings", "structures", "equipment", "archetypes"]
+        for cat in categories:
+            self.project.trees[cat] = QTreeWidgetItem(self.ui.elementViewer, [cat.capitalize()])
+
+    def update_versioned_elements(self):
         self.ui.actionSulfurCubeArchetype.setEnabled(False)
         try:
-            version = self.packDetails["version"]
-            enabled = "sulfur_cube_archetype" in self.version_json["versions"][version]["enable_elements"]
-            self.ui.actionSulfurCubeArchetype.setEnabled(enabled)
-        except:
+            version = self.project.pack_details.version
+            elements = self.project.version_json["versions"][version].get("enable_elements", [])
+            self.ui.actionSulfurCubeArchetype.setEnabled("sulfur_cube_archetype" in elements)
+        except (AttributeError, KeyError):
             pass
 
+    # ── Save ──────────────────────────────────────────────────────────────
 
-    #######################
-    # SAVE / LOAD         #
-    #######################
-    
-    def saveProject(self):
-        self.saveProjectAs()
+    def save(self):
+        self.ui.statusbar.showMessage("Saving…", 2000)
+        workspace = self.settings.get("general", "workspace_path")
+        ns = self.project.pack_details.namespace
 
-    def saveProjectAs(self):
-        self.ui.statusbar.showMessage("Saving...", 2000)
-        if self.workspacePath == 'default':
-            projectDirectory = self.mainDirectory / 'workspaces' / f'{self.packDetails["namespace"]}'
+        if workspace == "default" or not os.path.exists(workspace):
+            project_dir = self.main_dir / "workspaces" / ns
         else:
-            if os.path.exists(self.workspacePath):
-                projectDirectory = self.workspacePath
-            else:
-                projectDirectory = self.mainDirectory / 'workspaces' / f'{self.packDetails["namespace"]}'
-        self.settings.set('data', 'last_project_path', str(projectDirectory))
-        self.settings.set('data', 'last_project_namespace', self.packDetails["namespace"])
-        self.settings.save_settings()
-        
-        os.makedirs(projectDirectory, exist_ok=True)
+            project_dir = self.main_dir / workspace / ns
 
-        with open(projectDirectory / 'project.dat', 'w') as file:
-            data = {
-            "app_version": APP_VERSION,
-            "metadata": {
-                "last_edited": datetime.datetime.now(datetime.timezone.utc).isoformat()
-            },
-            "packDetails": self.packDetails
-        }
-            json.dump(data, file, indent=4)
-            
-        with open(projectDirectory / 'blocks.json', 'w') as file:
-            json.dump(self.blocks, file, indent=4)
-        with open(projectDirectory / 'items.json', 'w') as file:
-            json.dump(self.items, file, indent=4)
-        with open(projectDirectory / 'recipes.json', 'w') as file:
-            json.dump(self.recipes, file, indent=4)
-        with open(projectDirectory / 'paintings.json', 'w') as file:
-            json.dump(self.paintings, file, indent=4)
-        with open(projectDirectory / 'structures.json', 'w') as file:
-            json.dump(self.structures, file, indent=4)
-        with open(projectDirectory / 'equipment.json', 'w') as file:
-            json.dump(self.equipment, file, indent=4)
-        with open(projectDirectory / 'archetypes.json', 'w') as file:
-            json.dump(self.archetypes, file, indent=4)
-        
-        os.makedirs(projectDirectory / 'assets', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'blocks', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'items', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'paintings', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'structures', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'equipment', exist_ok=True)
-        os.makedirs(projectDirectory / 'assets' / 'archetypes', exist_ok=True)
+        project_dir.mkdir(parents=True, exist_ok=True)
 
-        manifestPath = self.mainDirectory / 'workspaces' / 'manifest.json'
+        # project.dat
+        with open(project_dir / "project.dat", "w") as f:
+            json.dump(
+                {
+                    "app_version": APP_VERSION,
+                    "metadata": {
+                        "last_edited": datetime.datetime.now(datetime.timezone.utc).isoformat()
+                    },
+                    "packDetails": self.project.pack_details.to_dict(),
+                },
+                f, indent=4,
+            )
 
-        # Load existing manifest if it exists, otherwise start fresh
-        if os.path.exists(manifestPath):
-            with open(manifestPath, 'r') as f:
-                manifest = json.load(f)
-        else:
-            manifest = {"workspaces": []}
+        # Element files
+        for name, data in [
+            ("blocks",     self.project.blocks),
+            ("items",      self.project.items),
+            ("recipes",    self.project.recipes),
+            ("paintings",  self.project.paintings),
+            ("structures", self.project.structures),
+            ("equipment",  self.project.equipment),
+            ("archetypes", self.project.archetypes),
+        ]:
+            with open(project_dir / f"{name}.json", "w") as f:
+                json.dump(data, f, indent=4)
 
-        # Add current workspace if it's not already listed
-        namespace = self.packDetails["namespace"]
-        if namespace not in manifest["workspaces"]:
-            manifest["workspaces"].append(namespace)
-            with open(manifestPath, 'w') as f:
-                json.dump(manifest, f, indent=4)
-        
-        self.unsavedChanges = False
-        
-    def loadProjectUI(self):
-        self.projectList = QWidget()
-        self.projectForm = load_project.Ui_Form()
-        self.projectForm.setupUi(self.projectList)
+        # Asset directories
+        for sub in ["blocks", "items", "paintings", "structures", "equipment", "archetypes"]:
+            (project_dir / "assets" / sub).mkdir(parents=True, exist_ok=True)
 
-        manifest_path = self.mainDirectory / 'workspaces' / 'manifest.json'
-        projects = []
-
-        if os.path.exists(manifest_path):
+        # Manifest
+        manifest_path = self.main_dir / "workspaces" / "manifest.json"
+        manifest = {"workspaces": []}
+        if manifest_path.exists():
             try:
-                with open(manifest_path, 'r') as f:
-                    manifest = json.load(f)
-                if "workspaces" in manifest and isinstance(manifest["workspaces"], list):
-                    projects = manifest["workspaces"]
+                manifest = json.loads(manifest_path.read_text())
             except json.JSONDecodeError:
-                alert("There was an error reading the manifest.json!\nIt is either missing or malformed.")
+                pass
+        if ns not in manifest["workspaces"]:
+            manifest["workspaces"].append(ns)
+            manifest_path.write_text(json.dumps(manifest, indent=4))
 
-        self.projectForm.listWidget.clear()
-        self.projectForm.listWidget.addItems(projects)
+        # Persist last project in settings
+        self.settings.set("data", "last_project_path", str(project_dir))
+        self.settings.set("data", "last_project_namespace", ns)
+        self.settings.save_settings()
 
-        self.projectForm.pushButton.clicked.connect(lambda: self.loadProject(self.projectForm.listWidget.item(self.projectForm.listWidget.currentRow()).text()))
+        self.project.unsaved_changes = False
 
-        self.projectList.show()
+    # ── Load ──────────────────────────────────────────────────────────────
 
-    def loadProject(self, projectNamespace):
-        if projectNamespace == "":
+    def load_project_ui(self):
+        """Show the project picker popup."""
+        from ui import load_project as lp
+        self._picker = QWidget()
+        form = lp.Ui_Form()
+        form.setupUi(self._picker)
+
+        manifest_path = self.main_dir / "workspaces" / "manifest.json"
+        projects = []
+        if manifest_path.exists():
+            try:
+                manifest = json.loads(manifest_path.read_text())
+                projects = manifest.get("workspaces", [])
+            except json.JSONDecodeError:
+                alert("manifest.json is missing or corrupt.")
+
+        form.listWidget.addItems(projects)
+
+        def on_confirm():
+            row = form.listWidget.currentRow()
+            if row < 0 or form.listWidget.item(row) is None:
+                alert("Please select a project first!")
+                return
+            ns = form.listWidget.item(row).text()
+            self._picker.close()
+            self.load(ns)
+
+        form.pushButton.clicked.connect(on_confirm)
+        self._picker.show()
+
+    def load(self, namespace: str):
+        if not namespace:
             alert("Please select a valid project!")
             return
-        
-        self.ui.statusbar.showMessage("Loading Project...", 2000)
 
-        projectDirectory = self.mainDirectory / 'workspaces' / f'{projectNamespace}'
-        if not os.path.exists(projectDirectory):
-            alert("This project doesn't exist or is corrupted!")
+        self.ui.statusbar.showMessage("Loading project…", 2000)
+        project_dir = self.main_dir / "workspaces" / namespace
+        if not project_dir.exists():
+            alert("That project doesn't exist or is corrupted!")
             return
-        
-        with open(projectDirectory / 'project.dat', 'r') as file:
-            data = json.load(file)
-            self.packDetails = data["packDetails"]
-        if data["app_version"] != APP_VERSION:
-            alert("Warning: This project was created with a different version of the app, and may cause crashes or corruption!")
-        
-        self.pullSupportedVersions(remote=False)
-        self.pullData(remote=False)
-        self.setupProjectData()
 
-        with open(projectDirectory / 'blocks.json', 'r') as file:
-            self.blocks = json.load(file)
-        with open(projectDirectory / 'items.json', 'r') as file:
-            self.items = json.load(file)
-        with open(projectDirectory / 'recipes.json', 'r') as file:
-            self.recipes = json.load(file)
-        with open(projectDirectory / 'paintings.json', 'r') as file:
-            self.paintings = json.load(file)
-        with open(projectDirectory / 'structures.json', 'r') as file:
-            self.structures = json.load(file)
-        with open(projectDirectory / 'equipment.json', 'r') as file:
-            self.equipment = json.load(file)
-        with open(projectDirectory / 'archetypes.json', 'r') as file:
-            self.archetypes = json.load(file)
-        
-        try:
-            self.projectList.close()
-        except:
-            pass
-       
-        for item in self.blocks:
-            QTreeWidgetItem(self.blocks_tree, [self.blocks[item]["name"]])
-        
-        for item in self.items:
-            QTreeWidgetItem(self.items_tree, [self.items[item]["name"]])
-        
-        for item in self.recipes:
-            QTreeWidgetItem(self.recipes_tree, [self.recipes[item]["name"]])
-        
-        for item in self.paintings:
-            QTreeWidgetItem(self.paintings_tree, [self.paintings[item]["name"]])
-        
-        for item in self.structures:
-            QTreeWidgetItem(self.structures_tree, [self.structures[item]["name"]])
-        
-        for item in self.equipment:
-            QTreeWidgetItem(self.equipment_tree, [self.equipment[item]["name"]])
-        
-        for item in self.archetypes:
-            QTreeWidgetItem(self.archetypes_tree, [self.archetypes[item]["name"]])
-    
+        with open(project_dir / "project.dat", "r") as f:
+            dat = json.load(f)
+
+        if dat.get("app_version") != APP_VERSION:
+            alert("Warning: this project was created with a different version of mDirt and may behave unexpectedly.")
+
+        self.project.pack_details = PackDetails.from_dict(dat["packDetails"])
+        self.pull_supported_versions(remote=False)
+
+        # Load mc_data without downloading
+        version = self.project.pack_details.version
+        data_path = self.main_dir / "lib" / f"{version}_data.json"
+        with open(data_path, "r") as f:
+            self.project.mc_data = json.load(f)
+
+        ver_info = self.project.version_json["versions"][version]
+        self.project.data_format = ver_info["data_format"]
+        self.project.resource_format = ver_info["resource_format"]
+        self.project.reset_elements()
+        self.project.header = (
+            "#####################################\n"
+            f"#   This File Was Created By mDirt  #\n"
+            f"#              {APP_VERSION}              #\n"
+            "#    Copyright 2026 by JoelDaDev    #\n"
+            "#####################################\n"
+        )
+
+        for attr in ["blocks", "items", "recipes", "paintings", "structures", "equipment", "archetypes"]:
+            path = project_dir / f"{attr}.json"
+            if path.exists():
+                with open(path, "r") as f:
+                    setattr(self.project, attr, json.load(f))
+
+        self._ensure_trees()
+        self._populate_trees()
+
+        self.project.is_loaded = True
+        self.project.unsaved_changes = False
+
+        self.ui.menuNew_Element.setEnabled(True)
+        self.ui.menuTools.setEnabled(True)
+        self.update_versioned_elements()
+
+    def _populate_trees(self):
+        for cat in ["blocks", "items", "recipes", "paintings", "structures", "equipment", "archetypes"]:
+            tree = self.project.trees.get(cat)
+            if tree is None:
+                continue
+            tree.takeChildren()
+            for name in getattr(self.project, cat):
+                QTreeWidgetItem(tree, [name])

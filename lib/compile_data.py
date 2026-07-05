@@ -289,6 +289,6 @@ def get_minecraft_files(version: str, soundver: str):
 # 1.21.9/10 = 27
 # 1.21.11: 29
 # 26.1.x: 30
-# 26.2.x: 31
+# 26.2.x: 32
 # We have NO IDEA why Mojang names their sounds this way.
-get_minecraft_files("26.2-snapshot-7", "31")
+get_minecraft_files("26.2", "32")

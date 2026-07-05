@@ -1,1506 +1,376 @@
-import os
-import sys
+"""
+mDirt — Minecraft Datapack Editor
+Entry point and main window.
+
+The window is intentionally thin: it owns the controllers and wires signals.
+All element logic lives in src/controllers/, all data in src/models/project.py.
+"""
 import importlib
+import logging
+import os
 import shutil
 import subprocess
-import logging
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QImage, QPixmap, QFont, QIcon, QFontDatabase
-from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QWidget, QTreeWidgetItem, QCheckBox, QMessageBox
+from PySide6.QtGui import QFont, QFontDatabase, QIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
 
-from utils.field_validator import FieldValidator
-from utils.field_resetter import FieldResetter
-from utils.enums import BlockFace, ElementPage
-from utils.alert import alert
-from utils.const import *
-from utils.drop_handler import DropHandler
+from controllers.archetype import ArchetypeController
+from controllers.block import BlockController
+from controllers.equipment import EquipmentController
+from controllers.item import ItemController
+from controllers.painting import PaintingController
+from controllers.recipe import RecipeController
+from controllers.structure import StructureController
 
-import ui.select_item as select_item
-from ui.ui import Ui_MainWindow
-from ui.ui_attribute import Ui_Form as AttributeForm
+from core.project_manager import ProjectManager
+from core.settings_controller import SettingsController
 
 from generation.text_generator import TextGenerator
 from generation.potion_generator import PotionGenerator, PotionEffectWidget, PotionColorPicker
 
 from settings import SettingsManager
+from ui.ui import Ui_MainWindow
+from utils.alert import alert
+from utils.const import APP_VERSION, OBFUSCATE_PROPERTY, MINECRAFT_COLORS
+from utils.enums import ElementPage
 
-from core.project_manager import ProjectManager
-from core.settings_controller import SettingsController
 
-class AttributeWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.ui = AttributeForm()
-        self.ui.setupUi(self)
+class Window(QMainWindow):
 
-class App(QMainWindow):
     def __init__(self):
         super().__init__()
-
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
-        if getattr(sys, 'frozen', False):
-            # Binary mode
-            self.mainDirectory = Path(sys._MEIPASS)
+        # ── Paths ─────────────────────────────────────────────────────────
+        if getattr(sys, "frozen", False):
+            self.main_dir = Path(sys._MEIPASS)
         else:
-            # Dev mode
-            self.mainDirectory = Path(__file__).resolve().parent.parent
+            self.main_dir = Path(__file__).resolve().parent.parent
+
+        # ── Core services ─────────────────────────────────────────────────
+        self.settings = SettingsManager()
+        self.auto_save_timer = QTimer(self)
+        self.settings_ctrl = SettingsController(
+            QApplication.instance(), self.ui, self.settings,
+            self.auto_save_timer, self.main_dir,
+        )
+        self.pm = ProjectManager(self.ui, self.main_dir, self.settings)
+
+        # ── Logging ───────────────────────────────────────────────────────
+        self._setup_logging()
+
+        # ── UI bootstrap ──────────────────────────────────────────────────
         self.ui.menuNew_Element.setEnabled(False)
         self.ui.menuTools.setEnabled(False)
+        self.settings_ctrl.disableUnusedSettings()
+        self.settings_ctrl.refreshSettings()
 
-        self.workspacePath = "default"
+        os.makedirs(self.main_dir / "workspaces", exist_ok=True)
+        self.settings_ctrl.loadThemes(self.main_dir / "assets" / "themes")
+        self._load_fonts()
+        self._load_welcome_screen()
 
-        self.settings = SettingsManager()
-        self.autoSaveTimer = QTimer(self)
-        self.settingsController = SettingsController(app, self.ui, self.settings, self.autoSaveTimer, self.mainDirectory)
-
-        # Project Man
-        self.project = ProjectManager(self.ui, self.mainDirectory, self.workspacePath, self.settings)
-
-        self.autoSaveTimer.timeout.connect(self.project.saveProject)
-
-        self.settingsController.setAutoSaveInterval()
-
-        self.logger = logging.getLogger("mDirt")
-        self.logger.setLevel(logging.DEBUG)
-        self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-        self.file_handler = logging.FileHandler("mdirt.log", mode='w')
-        self.file_handler.setFormatter(self.formatter)
-
-        self.console_handler = logging.StreamHandler()
-        self.console_handler.setFormatter(self.formatter)
-
-        self.logger.addHandler(self.file_handler)
-        self.logger.addHandler(self.console_handler)
-
-        if self.settings.get("file_export", "verbose_logging"):
-            self.logger.setLevel(logging.DEBUG)
-        else:
-            self.logger.setLevel(logging.WARNING)
-
-        self.settingsController.disableUnusedSettings()
-
-        if self.settings.get('general', 'open_last_project'):
-            project = self.settings.get('data', 'last_project_path')
-            if os.path.exists(project):
-                self.project.loadProject(self.settings.get('data', 'last_project_namespace'))
-        
-        showTips = self.settings.get('appearance', 'show_tips')
-        if not showTips:
-            self.ui.textEdit.setText("")
-
-        # Load Welcome Screen, apply it.
-        htmlFile = self.mainDirectory / 'src' / 'ui' / 'welcome_screen.html'
-        with open(htmlFile, 'r') as f:
-            self.welcomeScreen = f.read()
-        self.ui.textEdit.setHtml(self.welcomeScreen)
-        self.ui.textEdit.setOpenExternalLinks(True)
-
-        # Load Icon, then apply it.
-        icon = self.mainDirectory / 'assets' / 'icon.png'
+        icon = self.main_dir / "assets" / "icon.png"
         self.setWindowIcon(QIcon(str(icon)))
 
-        self.unsavedChanges = False
+        # ── Controllers ───────────────────────────────────────────────────
+        project = self.pm.project
+        md = self.main_dir
+        self.block_ctrl    = BlockController(self.ui, project, md)
+        self.item_ctrl     = ItemController(self.ui, project, md)
+        self.recipe_ctrl   = RecipeController(self.ui, project, md)
+        self.painting_ctrl = PaintingController(self.ui, project, md)
+        self.struct_ctrl   = StructureController(self.ui, project, md)
+        self.equip_ctrl    = EquipmentController(self.ui, project, md)
+        self.arch_ctrl     = ArchetypeController(self.ui, project, md)
 
-        # Create Workspaces folder
-        os.makedirs(self.mainDirectory / 'workspaces', exist_ok=True)
+        # ── Tools ─────────────────────────────────────────────────────────
+        family = QFontDatabase.applicationFontFamilies(self._font_ids[0])[0]
+        self.minecraft_font = QFont(family, 12)
+        self.text_gen = TextGenerator(self.ui, OBFUSCATE_PROPERTY, MINECRAFT_COLORS)
+        self.potion_gen: PotionGenerator | None = None
+        self._effect_widgets: list = []
 
-        # Load Themes
-        path = self.mainDirectory / 'assets' / 'themes'
-        self.settingsController.loadThemes(path)
+        # ── Signal wiring ─────────────────────────────────────────────────
+        self._connect_signals()
 
-        # Load Fonts
-        self.fontIDS = self.loadFonts()
-        
-        family = QFontDatabase.applicationFontFamilies(self.fontIDS[0])[0]
-        self.minecraftFont = QFont(family, 12)
+        # ── Restore last session ──────────────────────────────────────────
+        self.pm.update_versioned_elements()
+        if self.settings.get("general", "open_last_project"):
+            last_ns = self.settings.get("data", "last_project_namespace")
+            last_path = self.settings.get("data", "last_project_path")
+            if last_ns and os.path.exists(last_path):
+                self.pm.load(last_ns)
 
-        # Tools Setup
-        self.text_generator = TextGenerator(self.ui, OBFUSCATE_PROPERTY, MINECRAFT_COLORS)
-        self.potion_generator = None
-        self.effectWidgets = []
+        self.auto_save_timer.timeout.connect(self._save_project)
+        self.settings_ctrl.setAutoSaveInterval()
+        self._check_updates()
 
-        self.project.enableVersionedElements()
+    # ── Setup helpers ─────────────────────────────────────────────────────
 
-        # CONNECTIONS
-        self.ui.actionNew_Project.triggered.connect(self.project.openProjectMenu)
-        self.ui.createProjectButton.clicked.connect(self.project.newProject)
-        self.ui.actionOpen_Project.triggered.connect(self.project.loadProjectUI)
-        self.ui.actionExport_Project.triggered.connect(self.generate)
-        self.ui.actionSave_2.triggered.connect(self.project.saveProject)
-        self.ui.actionSettings.triggered.connect(self.settingsController.openSettings)
+    def _setup_logging(self):
+        logger = logging.getLogger("mDirt")
+        fmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        fh = logging.FileHandler("mdirt.log", mode="w")
+        fh.setFormatter(fmt)
+        ch = logging.StreamHandler()
+        ch.setFormatter(fmt)
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+        level = logging.DEBUG if self.settings.get("file_export", "verbose_logging") else logging.WARNING
+        logger.setLevel(level)
+        self.logger = logger
 
-        self.ui.elementViewer.itemDoubleClicked.connect(self.elementClicked)
+    def _load_fonts(self):
+        font_dir = self.main_dir / "assets" / "fonts"
+        self._font_ids = []
+        for f in os.listdir(font_dir):
+            if f.endswith(".otf"):
+                fid = QFontDatabase.addApplicationFont(str(font_dir / f))
+                if fid != -1:
+                    self._font_ids.append(fid)
 
-        self.ui.actionBlock.triggered.connect(self.newBlock)
-        self.ui.actionItem.triggered.connect(self.newItem)
-        self.ui.actionRecipe.triggered.connect(self.newRecipe)
-        self.ui.actionPainting.triggered.connect(self.newPainting)
-        self.ui.actionStructure.triggered.connect(self.newStructure)
-        self.ui.actionEquipmentSet.triggered.connect(self.newEquipment)
-        self.ui.actionSulfurCubeArchetype.triggered.connect(self.newArchetype)
+    def _load_welcome_screen(self):
+        html_file = self.main_dir / "src" / "ui" / "welcome_screen.html"
+        with open(html_file, "r") as f:
+            self._welcome_html = f.read()
+        if self.settings.get("appearance", "show_tips"):
+            self.ui.textEdit.setHtml(self._welcome_html)
+            self.ui.textEdit.setOpenExternalLinks(True)
 
-        self.ui.actionText_Generator.triggered.connect(self.textGenerator)
-        self.ui.actionPotion_Generator.triggered.connect(self.potionGenerator)
+    def _check_updates(self):
+        if not self.settings.get("network", "check_updates"):
+            return
+        if sys.platform != "win32":
+            return
+        updater = self.main_dir.parent / "mDirtUpdater.exe"
+        if updater.exists():
+            subprocess.Popen(str(updater))
+        else:
+            alert("The mDirt Updater is missing! Reinstall mDirt to fix it.", "critical")
 
-        # Block Specific Connections
-        self.blockTexture = {}
-        self.ui.blockTextureButtonTop.clicked.connect(lambda: self.addBlockTexture(BlockFace.TOP))
-        self.ui.blockTextureButtonLeft.clicked.connect(lambda: self.addBlockTexture(BlockFace.LEFT))
-        self.ui.blockTextureButtonBack.clicked.connect(lambda: self.addBlockTexture(BlockFace.BACK))
-        self.ui.blockTextureButtonRight.clicked.connect(lambda: self.addBlockTexture(BlockFace.RIGHT))
-        self.ui.blockTextureButtonFront.clicked.connect(lambda: self.addBlockTexture(BlockFace.FRONT))
-        self.ui.blockTextureButtonBottom.clicked.connect(lambda: self.addBlockTexture(BlockFace.BOTTOM))
+    # ── Signal connections ────────────────────────────────────────────────
 
-        self.dropTop = DropHandler(self.ui.blockTextureButtonTop, '.png', lambda path: self.addBlockTexture(BlockFace.TOP, path))
-        self.dropLeft = DropHandler(self.ui.blockTextureButtonLeft, '.png', lambda path: self.addBlockTexture(BlockFace.LEFT, path))
-        self.dropBack = DropHandler(self.ui.blockTextureButtonBack, '.png', lambda path: self.addBlockTexture(BlockFace.BACK, path))
-        self.dropRight = DropHandler(self.ui.blockTextureButtonRight, '.png', lambda path: self.addBlockTexture(BlockFace.RIGHT, path))
-        self.dropFront = DropHandler(self.ui.blockTextureButtonFront, '.png', lambda path: self.addBlockTexture(BlockFace.FRONT, path))
-        self.dropBottom = DropHandler(self.ui.blockTextureButtonBottom, '.png', lambda path: self.addBlockTexture(BlockFace.BOTTOM, path))
+    def _connect_signals(self):
+        # Menu: project
+        self.ui.actionNew_Project.triggered.connect(self.pm.open_project_menu)
+        self.ui.createProjectButton.clicked.connect(self.pm.new_project)
+        self.ui.actionOpen_Project.triggered.connect(self.pm.load_project_ui)
+        self.ui.actionSave_2.triggered.connect(self._save_project)
+        self.ui.actionExport_Project.triggered.connect(self._generate)
+        self.ui.actionSettings.triggered.connect(self.settings_ctrl.openSettings)
 
-        self.ui.blockModel.currentTextChanged.connect(self.getBlockModel)
-        self.ui.blockConfirmButton.clicked.connect(self.addBlock)
+        # Element tree
+        self.ui.elementViewer.itemDoubleClicked.connect(self._on_element_clicked)
 
-        # Item Specific Connections
-        self.ui.itemTextureButton.clicked.connect(self.addItemTexture)
-        self.ui.itemConfirmButton.clicked.connect(self.addItem)
+        # Menu: new element
+        self.ui.actionBlock.triggered.connect(self.block_ctrl.new)
+        self.ui.actionItem.triggered.connect(self.item_ctrl.new)
+        self.ui.actionRecipe.triggered.connect(self.recipe_ctrl.new)
+        self.ui.actionPainting.triggered.connect(self.painting_ctrl.new)
+        self.ui.actionStructure.triggered.connect(self.struct_ctrl.new)
+        self.ui.actionEquipmentSet.triggered.connect(self.equip_ctrl.new)
+        self.ui.actionSulfurCubeArchetype.triggered.connect(self.arch_ctrl.new)
 
-        self.dropItem = DropHandler(self.ui.itemTextureButton, '.png', self.addItemTexture)
+        # Tools
+        self.ui.actionText_Generator.triggered.connect(self._open_text_generator)
+        self.ui.actionPotion_Generator.triggered.connect(self._open_potion_generator)
 
-        # Recipe Specific Connections
-        self.ui.slot0Button.clicked.connect(lambda: self.getRecipeItem(0))
-        self.ui.slot1Button.clicked.connect(lambda: self.getRecipeItem(1))
-        self.ui.slot2Button.clicked.connect(lambda: self.getRecipeItem(2))
-        self.ui.slot3Button.clicked.connect(lambda: self.getRecipeItem(3))
-        self.ui.slot4Button.clicked.connect(lambda: self.getRecipeItem(4))
-        self.ui.slot5Button.clicked.connect(lambda: self.getRecipeItem(5))
-        self.ui.slot6Button.clicked.connect(lambda: self.getRecipeItem(6))
-        self.ui.slot7Button.clicked.connect(lambda: self.getRecipeItem(7))
-        self.ui.slot8Button.clicked.connect(lambda: self.getRecipeItem(8))
-        self.ui.slot9Button.clicked.connect(lambda: self.getRecipeItem(9))
-
-        self.ui.smeltingInputButton.clicked.connect(lambda: self.getRecipeItem(10))
-        self.ui.smeltingOutputButton.clicked.connect(lambda: self.getRecipeItem(11))
-
-        self.ui.stoneCuttingInputButton.clicked.connect(lambda: self.getRecipeItem(12))
-        self.ui.stoneCuttingOutputButton.clicked.connect(lambda: self.getRecipeItem(13))
-
-        self.ui.recipeConfirmButton.clicked.connect(self.addRecipe)
-
-        # Painting Specific Connections
-        self.ui.paintingTextureButton.clicked.connect(self.addPaintingTexture)
-        self.ui.paintingConfirmButton.clicked.connect(self.addPainting)
-
-        self.dropPainting = DropHandler(self.ui.paintingTextureButton, '.png', self.addPaintingTexture)
-
-        # Structure Specific Connections
-        self.ui.structureNBTButton.clicked.connect(self.addStructureNBT)
-        self.ui.structureConfirmButton.clicked.connect(self.addStructure)
-
-        self.dropStructure = DropHandler(self.ui.structureNBTButton, '.nbt', self.addStructureNBT)
-
-        # Equipment Specific Connections
-        button_map = [
-            ("helmet", "Item"),
-            ("chestplate", "Item"),
-            ("leggings", "Item"),
-            ("boots", "Item"),
-            ("horseArmor", "Item")
-        ]
-
-        for part, type_ in button_map:
-            btn_attr = f"{part}{type_}"
-            label_attr = f"{btn_attr}Label"
-            
-            button = getattr(self.ui, btn_attr)
-            label = getattr(self.ui, label_attr)
-
-            button.clicked.connect(
-                lambda _, t=type_, p=part, l=label: self.addEquipmentTexture(t, p, l)
-            )
-        
-        self.ui.chestplateModel.clicked.connect(lambda: self.addEquipmentTexture("humanoid", None, self.ui.chestplateModelLabel))
-        self.ui.leggingsModel.clicked.connect(lambda: self.addEquipmentTexture("humanoid_leggings", None, self.ui.leggingsModelLabel))
-        self.ui.horseArmorModel.clicked.connect(lambda: self.addEquipmentTexture("horseArmor1", None, self.ui.horseArmorModelLabel))
-
-        self.dropHelmet = DropHandler(self.ui.helmetItem, '.png', lambda path: self.addEquipmentTexture("Item", "helmet", self.ui.helmetItemLabel, path))
-        self.dropChestplate = DropHandler(self.ui.chestplateItem, '.png', lambda path: self.addEquipmentTexture("Item", "chestplate", self.ui.chestplateItemLabel, path))
-        self.dropLeggings = DropHandler(self.ui.leggingsItem, '.png', lambda path: self.addEquipmentTexture("Item", "leggings", self.ui.leggingsItemLabel, path))
-        self.dropBoots = DropHandler(self.ui.bootsItem, '.png', lambda path: self.addEquipmentTexture("Item", "boots", self.ui.bootsItemLabel, path))
-        self.dropHorse = DropHandler(self.ui.horseArmorItem, '.png', lambda path: self.addEquipmentTexture("Item", "horseArmor", self.ui.horseArmorItemLabel, path))
-
-        self.dropChestplateModel = DropHandler(self.ui.chestplateModel, '.png', lambda path: self.addEquipmentTexture("humanoid", None, self.ui.chestplateModelLabel, path))
-        self.dropLeggingsModel = DropHandler(self.ui.leggingsModel, '.png', lambda path: self.addEquipmentTexture("humanoid_leggings", None, self.ui.leggingsModelLabel, path))
-        self.dropHorseModel = DropHandler(self.ui.horseArmorModel, '.png', lambda path: self.addEquipmentTexture("horseArmor1", None, self.ui.horseArmorModelLabel, path))
-
-        self.ui.equipmentConfirmButton.clicked.connect(self.addEquipment)
-
-        # Archetype Connections
-        self.archetypeAttributes = {}
-
-        self.ui.archetypeAttributeButton.clicked.connect(self.addAttribute)
-
-        self.ui.archetypeConfirmButton.clicked.connect(self.addArchetype)
-
-        # Text Generator Connections
-        self.ui.textGeneratorBold.clicked.connect(self.text_generator.tg_ToggleBold)
-        self.ui.textGeneratorItalic.clicked.connect(self.text_generator.tg_ToggleItalic)
-        self.ui.textGeneratorUnderline.clicked.connect(self.text_generator.tg_ToggleUnderline)
-        self.ui.textGeneratorStrikethrough.clicked.connect(self.text_generator.tg_ToggleStrikethrough)
-        self.ui.textGeneratorObfuscated.clicked.connect(self.text_generator.tg_ToggleObfuscate)
-        self.ui.textGeneratorColor.clicked.connect(self.text_generator.tg_Color)
-        self.ui.textGeneratorTextBox.textChanged.connect(self.text_generator.tg_UpdateTextComponentOutput)
-        self.ui.textGeneratorCopy.clicked.connect(self.text_generator.tg_CopyOutput)
-
+        # Text generator
+        self.ui.textGeneratorBold.clicked.connect(self.text_gen.tg_ToggleBold)
+        self.ui.textGeneratorItalic.clicked.connect(self.text_gen.tg_ToggleItalic)
+        self.ui.textGeneratorUnderline.clicked.connect(self.text_gen.tg_ToggleUnderline)
+        self.ui.textGeneratorStrikethrough.clicked.connect(self.text_gen.tg_ToggleStrikethrough)
+        self.ui.textGeneratorObfuscated.clicked.connect(self.text_gen.tg_ToggleObfuscate)
+        self.ui.textGeneratorColor.clicked.connect(self.text_gen.tg_Color)
+        self.ui.textGeneratorTextBox.textChanged.connect(self.text_gen.tg_UpdateTextComponentOutput)
+        self.ui.textGeneratorCopy.clicked.connect(self.text_gen.tg_CopyOutput)
         self.ui.textGeneratorOutput.setReadOnly(True)
 
-        # Potion Generator Connections
-        self.ui.potionAddEffect.clicked.connect(self.addPotionEffect)
-        self.ui.potionColor.clicked.connect(self.getPotionColor)
-        self.ui.potionGenerate.clicked.connect(self.generatePotion)
-        self.ui.potionCopy.clicked.connect(self.copyPotionOutput)
-
+        # Potion generator
+        self.ui.potionAddEffect.clicked.connect(self._add_potion_effect)
+        self.ui.potionColor.clicked.connect(self._pick_potion_color)
+        self.ui.potionGenerate.clicked.connect(self._generate_potion)
+        self.ui.potionCopy.clicked.connect(self._copy_potion_output)
         self.ui.potionOutput.setReadOnly(True)
 
-        # Settings Specific Connections
-        self.ui.settingsWorkspacePathButton.clicked.connect(self.workspacePathChanged)
-        self.ui.settingsDefaultExportButton.clicked.connect(self.exportPathChanged)
+        # Settings path buttons
+        self.ui.settingsWorkspacePathButton.clicked.connect(self._pick_workspace_dir)
+        self.ui.settingsDefaultExportButton.clicked.connect(self._pick_export_dir)
 
-        self.settingsController.refreshSettings()
-
-        self.checkUpdates()
-
-    def checkUpdates(self):
-        if not self.settings.get('network', 'check_updates'): return
-        updaterPath = self.mainDirectory.parent / 'mDirtUpdater.exe'
-        if os.path.exists(updaterPath):
-            subprocess.Popen(updaterPath)
-        else:
-            alert("The mDirt Updater is missing! Reinstall mDirt to fix it.", 'critical')
-            #sys.exit(1)
-
-    def loadFonts(self):
-        self.fontDir = self.mainDirectory / 'assets' / 'fonts'
-        fontIDs = []
-        for file in os.listdir(self.fontDir):
-            if file.endswith('.otf'):
-                fontPath = self.fontDir / file
-                fontID = QFontDatabase.addApplicationFont(str(fontPath))
-                if fontID != -1:
-                    fontIDs.append(fontID)
-        
-        return fontIDs
-
-    #######################
-    # QT EVENTS           #
-    #######################
+    # ── Qt events ────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
-        if self.unsavedChanges:
+        if self.pm.project.unsaved_changes:
             reply = QMessageBox.question(
-                self,
-                "Confirm Exit",
-                "You have unsaved changes. Are you sure you want to exit?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
+                self, "Unsaved Changes",
+                "You have unsaved changes. Exit anyway?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
             )
-            if reply == QMessageBox.Yes:
-                event.accept()
-            else:
-                event.ignore()
+            event.accept() if reply == QMessageBox.Yes else event.ignore()
         else:
             event.accept()
 
-    #######################
-    # SETTINGS            #
-    #######################
+    # ── Element tree dispatcher ────────────────────────────────────────────
 
-    def workspacePathChanged(self):
+    def _on_element_clicked(self, item, column):
+        parent = item.parent()
+        if parent is None:
+            return
+        category = parent.text(column).lower()
+        name = item.text(column)
+        dispatch = {
+            "blocks":     self.block_ctrl.edit,
+            "items":      self.item_ctrl.edit,
+            "recipes":    self.recipe_ctrl.edit,
+            "paintings":  self.painting_ctrl.edit,
+            "structures": self.struct_ctrl.edit,
+            "equipment":  self.equip_ctrl.edit,
+            "archetypes": self.arch_ctrl.edit,
+        }
+        handler = dispatch.get(category)
+        if handler:
+            handler(name)
+
+    # ── Save ──────────────────────────────────────────────────────────────
+
+    def _save_project(self):
+        if self.pm.project.is_loaded:
+            self.pm.save()
+
+    # ── Settings path pickers ─────────────────────────────────────────────
+
+    def _pick_workspace_dir(self):
         loc = QFileDialog.getExistingDirectory(self, "Select Workspace Directory", "")
-        self.ui.settingsWorkspacePathButton.setText(loc)
+        if loc:
+            self.ui.settingsWorkspacePathButton.setText(loc)
 
-    def exportPathChanged(self):
+    def _pick_export_dir(self):
         loc = QFileDialog.getExistingDirectory(self, "Select Export Directory", "")
-        self.ui.settingsDefaultExportButton.setText(loc)
+        if loc:
+            self.ui.settingsDefaultExportButton.setText(loc)
 
-    #######################
-    # ELEMENT MANAGER     #
-    #######################
+    # ── Pack generation ───────────────────────────────────────────────────
 
-    def elementClicked(self, item, column):
-        element_type = item.parent()
-        if element_type is None: return
+    def _generate(self):
+        if not self.pm.project.is_loaded:
+            alert("No project is open!")
+            return
 
-        if element_type.text(column) == "Blocks":
-            self.editBlock(item.text(column)) 
-        elif element_type.text(column) == "Items":
-            self.editItem(item.text(column))
-        elif element_type.text(column) == "Recipes":
-            self.editRecipe(item.text(column))
-        elif element_type.text(column) == "Paintings":
-            self.editPainting(item.text(column))
-        elif element_type.text(column) == "Structures":
-            self.editStructure(item.text(column))
-        elif element_type.text(column) == "Equipment":
-            self.editEquipment(item.text(column))
-        elif element_type.text(column) == "Archetypes":
-            self.editArchetype(item.text(column))
+        self.ui.statusbar.showMessage("Exporting project…", 2000)
+        project = self.pm.project
+        version = project.pack_details.version.replace(".", "_")
 
-    #######################
-    # BLOCKS TAB          #
-    #######################
+        prefix = "src." if getattr(sys, "frozen", False) else ""
+        GeneratorClass = importlib.import_module(
+            f"{prefix}generation.v{version}.generator"
+        ).Generator
 
-    def addBlockTexture(self, face: BlockFace, path=None):
-        if not path:
-            texture, _ = QFileDialog.getOpenFileName(self, "Open Texture File", "", "PNG Files (*.png)")
-            if not texture:
-                return
-        else:
-            texture = path
+        export_loc = self.settings.get("file_export", "default_export_location")
+        if export_loc == "default":
+            export_loc = self.main_dir / "exports"
+            os.makedirs(export_loc, exist_ok=True)
 
-        filename = os.path.basename(texture)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/blocks/{filename}'
-        shutil.copyfile(texture, destinationPath)
-
-        self.blockTexture[face] = destinationPath
-
-        image = QImage(self.blockTexture[face])
-        pixmap = QPixmap.fromImage(image).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
-
-        label_map = {
-            BlockFace.TOP: self.ui.blockTextureLabelTop,
-            BlockFace.LEFT: self.ui.blockTextureLabelLeft,
-            BlockFace.BACK: self.ui.blockTextureLabelBack,
-            BlockFace.RIGHT: self.ui.blockTextureLabelRight,
-            BlockFace.FRONT: self.ui.blockTextureLabelFront,
-            BlockFace.BOTTOM: self.ui.blockTextureLabelBottom,
-        }
-
-        label_map[face].setPixmap(pixmap)
-
-    def newBlock(self):
-        self.unsavedChanges = True
-        self.populateBlockDrop()
-        self.ui.elementEditor.setCurrentIndex(ElementPage.BLOCKS)
-
-    def populateBlockDrop(self):
-        self.ui.blockDropBox.clear()
-        self.ui.blockDropBox.addItem('self')
-        for block in self.project.blocks:
-            self.ui.blockDropBox.addItem(block)
-        for item in self.project.items:
-            self.ui.blockDropBox.addItem(item)
-        for equip in self.project.equipment: 
-                for item in ['helmet', 'chestplate', 'leggings', 'boots', 'horse_armor']:
-                    if not self.project.equipment[equip]["includeHorse"]:
-                        if item == "horse_armor": continue
-                    self.ui.blockDropBox.addItem(f'{self.project.equipment[equip]["name"]}_{item}')
-        for item in self.project.data["items"]:
-            self.ui.blockDropBox.addItem(item)
-
-    def getBlockModel(self):
-        if self.ui.blockModel.currentText() != "Custom": return
-        
-        fileDialog = QFileDialog()
-        filePath, _ = fileDialog.getOpenFileName(self, "Open JSON File", "", "JSON Files (*.json)")
-        if filePath:
-            fileName = os.path.basename(filePath)
-            destPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/blocks/{fileName}'
-            shutil.copy(filePath, destPath)
-            self.ui.blockModel.addItem(destPath)
-            self.ui.blockModel.setCurrentText(destPath)
-
-    def validateBlockDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.blockDisplayName, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789", "Display Name"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.blockName, "abcdefghijklmnopqrstuvwxyz_0123456789", "Name"):
-            return 0
-        if not FieldValidator.validate_dropdown_selection(self.ui.blockBaseBlock, list(self.project.data["blocks"]), "Base Block"):
-            return 0
-
-        return 1
-
-    def clearBlockFields(self):
-        FieldResetter.clear_line_edits(
-        self.ui.blockName,
-        self.ui.blockDisplayName,
-        self.ui.blockBaseBlock
+        gen = GeneratorClass(
+            APP_VERSION,
+            project.pack_details.to_dict(),
+            project.data_format,
+            project.resource_format,
+            project.header,
+            project.blocks,
+            project.items,
+            project.recipes,
+            project.paintings,
+            project.mc_data,
+            export_loc,
+            project.structures,
+            project.equipment,
+            project.archetypes,
         )
+        gen.generateDatapack()
 
-        FieldResetter.reset_combo_boxes(
-            self.ui.blockDropBox,
-            self.ui.blockModel
-        )
+        pack_name = project.pack_details.name
+        dp_path = os.path.join(export_loc, pack_name)
+        rp_path = os.path.join(export_loc, f"{pack_name} Resource Pack")
 
-        FieldResetter.clear_labels(
-            self.ui.blockTextureLabelTop,
-            self.ui.blockTextureLabelLeft,
-            self.ui.blockTextureLabelBack,
-            self.ui.blockTextureLabelRight,
-            self.ui.blockTextureLabelFront,
-            self.ui.blockTextureLabelBottom
-        )
+        shutil.make_archive(f"{dp_path} Data Pack", "zip", dp_path)
+        shutil.make_archive(rp_path, "zip", rp_path)
+        shutil.rmtree(dp_path)
+        shutil.rmtree(rp_path)
 
-        FieldResetter.uncheck_boxes(self.ui.blockDirectional)
-        FieldResetter.clear_tree_selection(self.ui.elementViewer)
+        dp_dest = QFileDialog.getExistingDirectory(self, "Export Data Pack To:", "")
+        rp_dest = QFileDialog.getExistingDirectory(self, "Export Resource Pack To:", "")
+        shutil.move(f"{dp_path} Data Pack.zip", os.path.join(dp_dest, f"{pack_name} Data Pack.zip"))
+        shutil.move(f"{rp_path}.zip", os.path.join(rp_dest, f"{pack_name} Resource Pack.zip"))
 
-        self.blockTexture = {}
-        self.populateBlockDrop()
+        alert("Pack generated successfully!")
 
-    def addBlock(self):
-        if self.validateBlockDetails() == 0: return
-        if self.ui.blockDirectional.isChecked(): value = "true"
-        else: value = "false"
-        self.blockProperties = {
-            "name": self.ui.blockName.text(),
-            "displayName": self.ui.blockDisplayName.text(),
-            "baseBlock": self.ui.blockBaseBlock.text(),
-            "textures": self.blockTexture,
-            "placeSound": self.ui.blockPlaceSound.text(),
-            "blockDrop": self.ui.blockDropBox.currentText(),
-            "directional": value,
-            "model": self.ui.blockModel.currentText(),
-        }
-        if not self.blockProperties["name"] in self.project.blocks:
-            self.project.blocks[self.blockProperties["name"]] = self.blockProperties
-            QTreeWidgetItem(self.project.blocks_tree, [self.blockProperties["name"]])
-        else:
-            self.project.blocks[self.blockProperties["name"]] = self.blockProperties
+    # ── Text generator ────────────────────────────────────────────────────
 
-        self.clearBlockFields()
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-        alert("Element added successfully!")
-
-    def editBlock(self, block):
-        properties = self.project.blocks[block]
-
-        self.ui.blockName.setText(properties["name"])
-        self.ui.blockDisplayName.setText(properties["displayName"])
-        self.ui.blockBaseBlock.setText(properties["baseBlock"])
-        self.ui.blockDropBox.setCurrentText(properties["blockDrop"])
-        self.ui.blockPlaceSound.setText(properties["placeSound"])
-        self.ui.blockDirectional.setChecked(properties["directional"])
-        self.ui.blockModel.setCurrentText(properties["model"])
-        self.blockTexture = properties["textures"]
-
-        for face, path in self.blockTexture.items():
-            pixmap = QPixmap.fromImage(QImage(path)).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
-
-            label_map = {
-                BlockFace.TOP: self.ui.blockTextureLabelTop,
-                BlockFace.LEFT: self.ui.blockTextureLabelLeft,
-                BlockFace.BACK: self.ui.blockTextureLabelBack,
-                BlockFace.RIGHT: self.ui.blockTextureLabelRight,
-                BlockFace.FRONT: self.ui.blockTextureLabelFront,
-                BlockFace.BOTTOM: self.ui.blockTextureLabelBottom,
-            }
-
-            label = label_map.get(BlockFace(int(face)))
-            if label:
-                label.setPixmap(pixmap)
-
-        
-        self.ui.elementEditor.setCurrentIndex(ElementPage.BLOCKS)
-
-    #######################
-    # ITEMS TAB           #
-    #######################
-
-    def addItemTexture(self, path=None):
-        if not path:
-            texture, _ = QFileDialog.getOpenFileName(self, "Open Texture File", "", "PNG Files (*.png)")
-            if not texture:
-                return
-        else:
-            texture = path
-        
-        filename = os.path.basename(texture)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/items/{filename}'
-        shutil.copyfile(texture, destinationPath)
-
-        self.itemTexture = destinationPath
-
-        image = QImage(self.itemTexture)
-        pixmap = QPixmap.fromImage(image).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
-
-        self.ui.itemTexture.setPixmap(pixmap)
-
-    def newItem(self):
-        self.unsavedChanges = True
-        self.ui.elementEditor.setCurrentIndex(ElementPage.ITEMS)
-
-    def getItemModel(self):
-        if self.ui.itemModel.currentText() != "Custom": return
-        
-        fileDialog = QFileDialog()
-        filePath, _ = fileDialog.getOpenFileName(self, "Open JSON File", "", "JSON Files (*.json)")
-        if filePath:
-            fileName = os.path.basename(filePath)
-            destPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/items/{fileName}'
-            shutil.copy(filePath, destPath)
-            self.ui.itemModel.addItem(destPath)
-            self.ui.itemModel.setCurrentText(destPath)
-
-    def validateItemDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.itemDisplayName, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789", "Display Name"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.itemName, "abcdefghijklmnopqrstuvwxyz_0123456789", "Item Name"):
-            return 0
-        if not self.ui.itemBaseItem.text() in self.project.data["items"]:
-            self.ui.itemBaseItem.setStyleSheet("QLineEdit { border: 1px solid red; }")
-            alert("Please input a Minecraft item to the Base Item field!")
-            return 0
-        else:
-            self.ui.itemBaseItem.setStyleSheet("")
-        if self.itemTexture == None:
-            self.ui.itemTextureButton.setStyleSheet("QLineEdit { border: 1px solid red; }")
-            alert("Please select a valid texture!")
-            return 0
-        else:
-            self.ui.itemTextureButton.setStyleSheet("")
-        
-        return 1
-
-    def clearItemFields(self):
-        FieldResetter.clear_line_edits(
-            self.ui.itemName,
-            self.ui.itemDisplayName,
-            self.ui.itemBaseItem
-        )
-
-        FieldResetter.reset_combo_boxes(
-            self.ui.itemModel,
-            self.ui.itemRightClickMode
-        )
-
-        FieldResetter.reset_spin_boxes(
-            self.ui.itemStackSize
-        )
-
-        FieldResetter.clear_text_edits(
-            self.ui.itemRightClickFunc
-        )
-
-        FieldResetter.clear_labels(
-            self.ui.itemTexture
-        )
-
-        FieldResetter.uncheck_boxes(
-            self.ui.itemRightClickCheck
-        )
-
-        FieldResetter.clear_tree_selection(self.ui.elementViewer)
-
-        self.itemTexture = None
-
-    def addItem(self):
-        if self.validateItemDetails() == 0: return
-        if self.ui.itemRightClickCheck.isChecked(): value = "true"
-        else: value = "false"
-        rightClick = {"enabled":value,"function":self.ui.itemRightClickFunc.toPlainText(),"mode":self.ui.itemRightClickMode.currentText().lower()}
-
-        self.itemProperties = {
-            "name": self.ui.itemName.text(),
-            "displayName": self.ui.itemDisplayName.text(),
-            "baseItem": self.ui.itemBaseItem.text(),
-            "texture": self.itemTexture,
-            "model": self.ui.itemModel.currentText().lower(),
-            "stackSize": self.ui.itemStackSize.value(),
-            "rightClick": rightClick,
-        }
-
-        if not self.itemProperties["name"] in self.project.items:
-            QTreeWidgetItem(self.project.items_tree, [self.itemProperties["name"]])
-
-        self.project.items[self.itemProperties["name"]] = self.itemProperties
-
-        self.clearItemFields()
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-        alert("Element added successfully!")
-
-    def editItem(self, item):
-        properties = self.project.items[item]
-
-        self.ui.itemName.setText(properties["name"])
-        self.ui.itemDisplayName.setText(properties["displayName"])
-        self.ui.itemBaseItem.setText(properties["baseItem"])
-        self.ui.itemModel.setCurrentText(properties["model"])
-        self.ui.itemStackSize.setValue(properties["stackSize"])
-        self.ui.itemRightClickFunc.setPlainText(properties["rightClick"]["function"])
-        self.ui.itemRightClickMode.setCurrentText(properties["rightClick"]["mode"])
-        self.ui.itemRightClickCheck.setChecked(properties["rightClick"]["enabled"])
-        
-        self.itemTexture = properties["texture"]
-
-        pixmap = QPixmap.fromImage(QImage(properties["texture"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
-        self.ui.itemTexture.setPixmap(pixmap)
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.ITEMS)
-
-    #######################
-    # RECIPES TAB         #
-    #######################
-
-    def getRecipeItem(self, id_):
-        slotId = id_
-        self.block_popup = QWidget()
-        self.ui_form = select_item.Ui_Form()
-        self.ui_form.setupUi(self.block_popup)
-
-        item_list = self.project.data["items"]
-
-        if slotId in (9, 11, 13):
-            for block in self.project.blocks: self.ui_form.itemsBox.addItem(f'{self.project.blocks[block]["name"]}')
-            for item in self.project.items: self.ui_form.itemsBox.addItem(f'{self.project.items[item]["name"]}')
-            for equip in self.project.equipment: 
-                for item in ['helmet', 'chestplate', 'leggings', 'boots', 'horse_armor']:
-                    if not self.project.equipment[equip]["includeHorse"]:
-                        if item == "horse_armor": continue
-                    self.ui_form.itemsBox.addItem(f'{self.project.equipment[equip]["name"]}_{item}')
-
-        for item in item_list: self.ui_form.itemsBox.addItem(item)
-
-        self.ui_form.pushButton.clicked.connect(lambda: self.recipeCloseForm(slotId, self.ui_form.itemsBox.currentText()))
-
-        self.block_popup.show()
-
-    def recipeCloseForm(self, id_, item):
-        self.recipe[id_] = item
-
-        match id_:
-            case 0: self.ui.slot0.setText(item)
-            case 1: self.ui.slot1.setText(item)
-            case 2: self.ui.slot2.setText(item)
-            case 3: self.ui.slot3.setText(item)
-            case 4: self.ui.slot4.setText(item)
-            case 5: self.ui.slot5.setText(item)
-            case 6: self.ui.slot6.setText(item)
-            case 7: self.ui.slot7.setText(item)
-            case 8: self.ui.slot8.setText(item)
-            case 9: self.ui.slot9.setText(item)
-            case 10: self.ui.smeltingInput.setText(item)
-            case 11: self.ui.smeltingOutput.setText(item)
-            case 12: self.ui.stoneCuttingInput.setText(item)
-            case 13: self.ui.stoneCuttingOutput.setText(item)
-
-        self.block_popup.close()
-
-    def newRecipe(self):
-        self.unsavedChanges = True
-        self.ui.elementEditor.setCurrentIndex(ElementPage.RECIPES)
-
-    def validateRecipeDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.recipeName, "abcdefghijklmnopqrstuvwxyz_0123456789", "Recipe Name"): 
-            return 0
-        if self.ui.slot9.text() == "" and self.ui.smeltingOutput.text() == "" and self.ui.stoneCuttingOutput.text() == "":
-            alert("Recipes require outputs! Please add one before confirming!")
-            return 0
-        
-        return 1
-
-    def clearRecipeFields(self):
-        FieldResetter.clear_line_edits(
-            self.ui.recipeName,
-            self.ui.slot0,
-            self.ui.slot1,
-            self.ui.slot2,
-            self.ui.slot3,
-            self.ui.slot4,
-            self.ui.slot5,
-            self.ui.slot6,
-            self.ui.slot7,
-            self.ui.slot8,
-            self.ui.slot9,
-            self.ui.smeltingInput,
-            self.ui.smeltingOutput,
-            self.ui.stoneCuttingInput,
-            self.ui.stoneCuttingOutput
-        )
-
-        FieldResetter.reset_spin_boxes(
-            self.ui.stoneCuttingCount,
-            self.ui.slot9Count
-        )
-
-        FieldResetter.uncheck_boxes(
-            self.ui.shapelessRadio,
-            self.ui.exactlyRadio
-        )
-
-        self.recipe = {}
-
-    def addRecipe(self):
-        if self.validateRecipeDetails() == 0: return
-
-        mode = "crafting"
-
-        if self.ui.recipeSubTabs.tabText(self.ui.recipeSubTabs.currentIndex()).lower() == "crafting":
-            mode = "crafting"
-            outputCount = self.ui.slot9Count.value()
-        elif self.ui.recipeSubTabs.tabText(self.ui.recipeSubTabs.currentIndex()).lower() == "smelting":
-            mode = self.ui.smeltingModeBox.currentText().lower()
-            outputCount = ""
-        elif self.ui.recipeSubTabs.tabText(self.ui.recipeSubTabs.currentIndex()).lower() == "stonecutting":
-            mode = "stonecutting"
-            outputCount = self.ui.stoneCuttingCount.value()
-
-        if self.ui.exactlyRadio.isChecked():
-            exacVal = "true"
-        else:
-            exacVal = "false"
-        if self.ui.shapelessRadio.isChecked():
-            shapVal = "true"
-        else:
-            shapVal = "false"
-
-        self.recipeProperties = {
-            "name": self.ui.recipeName.text(),
-            "items": self.recipe,
-            "outputCount": outputCount,
-            "exact": exacVal,
-            "shapeless": shapVal,
-            "type": mode
-        }
-
-        if not self.recipeProperties["name"] in self.project.recipes:
-            QTreeWidgetItem(self.project.recipes_tree, [self.recipeProperties["name"]])
-
-        self.project.recipes[self.recipeProperties["name"]] = self.recipeProperties
-
-        self.clearRecipeFields()
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-        alert("Element added successfully!")
-
-    def editRecipe(self, recipe):
-        properties = self.project.recipes[recipe]
-
-        self.ui.recipeName.setText(properties["name"])
-        self.ui.shapelessRadio.setChecked(properties["shapeless"])
-        self.ui.exactlyRadio.setChecked(properties["exact"])
-        self.ui.slot9Count.setValue(properties["outputCount"])
-        self.ui.stoneCuttingCount.setValue(properties["outputCount"])
-
-        items = properties.get("items", {})
-
-        self.ui.slot0.setText(items.get("0", ""))
-        self.ui.slot1.setText(items.get("1", ""))
-        self.ui.slot2.setText(items.get("2", ""))
-        self.ui.slot3.setText(items.get("3", ""))
-        self.ui.slot4.setText(items.get("4", ""))
-        self.ui.slot5.setText(items.get("5", ""))
-        self.ui.slot6.setText(items.get("6", ""))
-        self.ui.slot7.setText(items.get("7", ""))
-        self.ui.slot8.setText(items.get("8", ""))
-        self.ui.slot9.setText(items.get("9", ""))
-        self.ui.smeltingInput.setText(items.get("10", ""))
-        self.ui.smeltingOutput.setText(items.get("11", ""))
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.RECIPES)
-
-    #######################
-    # PAINTINGS TAB       #
-    #######################
-
-    def addPaintingTexture(self, path=None):
-        if not path:
-            texture, _ = QFileDialog.getOpenFileName(self, "Open Texture File", "", "PNG Files (*.png)")
-            if not texture:
-                return
-        else:
-            texture = path
-
-        filename = os.path.basename(texture)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/paintings/{filename}'
-        shutil.copyfile(texture, destinationPath)
-
-        self.paintingTexture = destinationPath
-
-        image = QImage(self.paintingTexture)
-        pixmap = QPixmap.fromImage(image).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
-
-        self.ui.paintingTexture.setPixmap(pixmap)
-
-    def newPainting(self):
-        self.unsavedChanges = True
-        self.ui.elementEditor.setCurrentIndex(ElementPage.PAINTINGS)
-
-    def validatePaintingDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.paintingDisplayName, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789", "Display Name"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.paintingName, "abcdefghijklmnopqrstuvwxyz_0123456789", "Painting Name"):
-            return 0
-        if self.paintingTexture == None:
-            self.ui.paintingTextureButton.setStyleSheet("QLineEdit { border: 1px solid red; }")
-            alert("Please select a valid texture!")
-            return 0
-        else:
-            self.ui.paintingTextureButton.setStyleSheet("")
-
-        return 1
-
-    def clearPaintingFields(self):
-        FieldResetter.clear_line_edits(
-            self.ui.paintingDisplayName,
-            self.ui.paintingName
-        )
-
-        FieldResetter.reset_spin_boxes(
-            self.ui.paintingWidth,
-            self.ui.paintingHeight
-        )
-
-        FieldResetter.clear_labels(
-            self.ui.paintingTexture
-        )
-
-        FieldResetter.uncheck_boxes(
-            self.ui.paintingPlaceable
-        )
-
-        self.paintingTexture = None
-
-    def addPainting(self):
-        if self.validatePaintingDetails() == 0: return
-        
-        if self.ui.paintingPlaceable.isChecked(): value = "true"
-        else: value = "false"
-
-        self.paintingProperties = {
-            "name": self.ui.paintingName.text(),
-            "displayName": self.ui.paintingDisplayName.text(),
-            "width": self.ui.paintingWidth.value(),
-            "height": self.ui.paintingHeight.value(),
-            "placeable": value,
-            "texture": self.paintingTexture
-        }
-
-        if not self.paintingProperties["name"] in self.project.paintings:
-            QTreeWidgetItem(self.project.paintings_tree, [self.paintingProperties["name"]])
-
-        self.project.paintings[self.paintingProperties["name"]] = self.paintingProperties
-
-        self.clearPaintingFields()
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-        alert("Element added successfully!")
-
-    def editPainting(self, painting):
-        properties = self.project.paintings[painting]
-
-        self.ui.paintingDisplayName.setText(properties["displayName"])
-        self.ui.paintingName.setText(properties["name"])
-        self.ui.paintingWidth.setValue(properties["width"])
-        self.ui.paintingHeight.setValue(properties["height"])
-        self.ui.paintingPlaceable.setChecked(properties["placeable"])
-        
-        self.paintingTexture = properties["texture"]
-        pixmap = QPixmap.fromImage(QImage(properties["texture"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
-        self.ui.paintingTexture.setPixmap(pixmap)
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.PAINTINGS)
-
-    #######################
-    # STRUCTURES TAB      #
-    #######################
-
-    def addStructureNBT(self, path=None):
-        if not path:
-            nbt, _ = QFileDialog.getOpenFileName(self, "Open Structure File", "", "NBT Files (*.nbt)")
-            if not nbt:
-                return
-        else:
-            nbt = path
-        
-        filename = os.path.basename(nbt)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/structures/{filename}'
-        shutil.copyfile(nbt, destinationPath)
-
-        self.structure = destinationPath
-        self.ui.structureNBTButton.setText(filename)
-
-    def newStructure(self):
-        self.unsavedChanges = True
-        self.ui.elementEditor.setCurrentIndex(ElementPage.STRUCTURES)
-        self.loadBiomeList()
-
-    def loadBiomeList(self):
-        self.biomeCheckboxes = {}
-        biomeList = self.project.data["biomes"]
-
-        for biome in biomeList:
-            checkbox = QCheckBox(biome)
-            self.biomeCheckboxes[biome] = checkbox
-            self.ui.verticalLayout_3.addWidget(checkbox)
-    
-    def getCheckedBiomes(self):
-        return [text for text, checkbox in self.biomeCheckboxes.items() if checkbox.isChecked()]
-
-    def validateStructureDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.structureName, "abcdefghijklmnopqrstuvwxyz_0123456789", "Structure Name"):
-            return 0
-        if self.structure == None:
-            self.ui.structureNBTButton.setsetStyleSheet("QLineEdit { border: 1px solid red; }")
-            alert("Please select a valid structure!")
-            return 0
-        else:
-            self.ui.structureNBTButton.setStyleSheet("")
-        
-        return 1
-
-    def clearStructureFields(self):
-        FieldResetter.clear_line_edits(
-            self.ui.structureName
-        )
-
-        FieldResetter.reset_spin_boxes(
-            self.ui.structureStartHeight,
-            self.ui.structureSpacing,
-            self.ui.structureSeperation
-        )
-
-        FieldResetter.reset_combo_boxes(
-            self.ui.structureLocation,
-            self.ui.structureTerrainAdaptation,
-            self.ui.structurePSTH
-        )
-
-        self.ui.structureNBTButton.setText("...")
-        self.structure = None
-        self.loadBiomeList()
-        
-    def addStructure(self):
-        if self.validateStructureDetails() == 0: return
-
-        self.structureProperties = {
-            "name": self.ui.structureName.text(),
-            "structure": self.structure,
-            "step": self.ui.structureLocation.currentText(),
-            "terrain_adaptation": self.ui.structureTerrainAdaptation.currentText(),
-            "start_height": self.ui.structureStartHeight.value(),
-            "psth": self.ui.structurePSTH.currentText(),
-            "spacing": self.ui.structureSpacing.value(),
-            "seperation": self.ui.structureSeperation.value(),
-            "biomes": self.getCheckedBiomes()
-        }
-
-        if not self.structureProperties["name"] in self.project.structures:
-            QTreeWidgetItem(self.project.structures_tree, [self.structureProperties["name"]])
-        
-        self.project.structures[self.structureProperties["name"]] = self.structureProperties
-
-        self.clearStructureFields()
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-        alert("Element added successfully!")
-
-    def editStructure(self, struct):
-        properties = self.project.structures[struct]
-
-        self.structure = properties["structure"]
-
-        self.ui.structureName.setText(properties["name"])
-        self.ui.structureNBTButton.setText(os.path.basename(self.structure))
-        self.ui.structureLocation.setCurrentText(properties["step"])
-        self.ui.structureTerrainAdaptation.setCurrentText(properties["terrain_adaptation"])
-        self.ui.structureStartHeight.setValue(properties["start_height"])
-        self.ui.structurePSTH.setCurrentText(properties["psth"])
-        self.ui.structureSpacing.setValue(properties["spacing"])
-        self.ui.structureSeperation.setValue(properties["seperation"])
-
-        self.loadBiomeList()
-        for biome in properties["biomes"]:
-            if biome in self.biomeCheckboxes:
-                self.biomeCheckboxes[biome].setChecked(True)
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.STRUCTURES)
-
-    #######################
-    # EQUIPMENT TAB       #
-    #######################
-
-    def addEquipmentTexture(self, type_, id, label_widget, path=None):
-        if not path:
-            model, _ = QFileDialog.getOpenFileName(self, "Open Texture File", "", "PNG Files (*.png)")
-            if not model:
-                return
-        else:
-            model = path
-        
-        filename = os.path.basename(model)
-        destinationPath = f'{self.mainDirectory}/workspaces/{self.project.packDetails["namespace"]}/assets/equipment/{filename}'
-        shutil.copyfile(model, destinationPath)
-
-        if type_.lower() == "humanoid":
-            self.project.equipmentModel["h"] = destinationPath
-        elif type_.lower() == "humanoid_leggings":
-            self.project.equipmentModel["h_l"] = destinationPath
-        elif type_.lower() == "horsearmor1":
-            self.project.equipmentModel["horseArmor"] = destinationPath
-        elif type_.lower() == "item":
-            self.project.equipmentTexture[id] = destinationPath
-        
-        image = QImage(destinationPath)
-        pixmap = QPixmap.fromImage(image).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio)
-
-        label_widget.setPixmap(pixmap)
-
-    def newEquipment(self): 
-        self.unsavedChanges = True
-        self.ui.elementEditor.setCurrentIndex(ElementPage.EQUIPMENT)
-
-    def validateEquipmentDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.equipmentName, "abcdefghijklmnopqrstuvwxyz _-!0123456789", "Equipment Name"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.equipmentDisplayName, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz _-!0123456789", "Equipment Display Name"):
-            return 0
-        
-        if self.project.equipmentTexture["helmet"] == None: alert("Item Texture: Helmet is empty!"); return 0
-        if self.project.equipmentTexture["chestplate"] == None: alert("Item Texture: Chestplate is empty!"); return 0
-        if self.project.equipmentTexture["leggings"] == None: alert("Item Texture: Leggings is empty!"); return 0
-        if self.project.equipmentTexture["boots"] == None: alert("Item Texture: Boots is empty!"); return 0
-        if self.project.equipmentModel["h"] == None: alert("Model Texture: Humanoid is empty!"); return 0
-        if self.project.equipmentModel["h_l"] == None: alert("Model Texture: Humanoid Leggings is empty!"); return 0
-        if self.ui.groupBox.isChecked():
-            if self.project.equipmentTexture["horseArmor"] == None: alert("Item Texture: Horse is empty!"); return 0
-            if self.project.equipmentModel["horseArmor"] == None: alert("Model Texture: Horse is empty!"); return 0
-
-        return 1
-
-    def clearEquipmentFields(self):
-        FieldResetter.clear_line_edits(
-            self.ui.equipmentName,
-            self.ui.equipmentDisplayName
-        )
-        FieldResetter.clear_labels(
-            self.ui.chestplateModelLabel,
-            self.ui.leggingsModelLabel,
-            self.ui.helmetItemLabel,
-            self.ui.chestplateItemLabel,
-            self.ui.leggingsItemLabel,
-            self.ui.bootsItemLabel,
-            self.ui.horseArmorItemLabel,
-            self.ui.horseArmorModelLabel
-        )
-        FieldResetter.reset_spin_boxes(
-            self.ui.helmetArmor,
-            self.ui.chestplateArmor,
-            self.ui.leggingsArmor,
-            self.ui.bootsArmor,
-            self.ui.horseArmor,
-            self.ui.equipmentArmorToughness,
-            self.ui.equipmentKBResistance,
-            self.ui.equipmentDurability
-        )
-
-        self.project.equipmentModel = {}
-        self.project.equipmentTexture = {}
-
-    def addEquipment(self):
-        if self.validateEquipmentDetails() == 0: return
-
-        base_dur = self.ui.equipmentDurability.value()
-
-        if self.ui.groupBox.isChecked():
-            val = "true"
-        else: val ="false"
-
-        self.project.equipmentProperties = {
-            "name": self.ui.equipmentName.text(),
-            "displayName": self.ui.equipmentDisplayName.text(),
-            "armor": {
-                "helmet": self.ui.helmetArmor.value(),
-                "chestplate": self.ui.chestplateArmor.value(),
-                "leggings": self.ui.leggingsArmor.value(),
-                "boots": self.ui.bootsArmor.value(),
-                "horse_armor": self.ui.horseArmor.value()
-            },
-            "toughness": self.ui.equipmentArmorToughness.value(),
-            "kb_resistance": self.ui.equipmentKBResistance.value(),
-            "durability": {
-                "helmet": int(.6875 * base_dur),
-                "chestplate": int(base_dur),
-                "leggings": int(.9375 * base_dur),
-                "boots": int(.8125 * base_dur),
-                "horse_armor": 1
-            },
-            "itemTextures": self.project.equipmentTexture,
-            "modelTextures": self.project.equipmentModel,
-            "includeHorse": val
-        }
-
-        if not self.project.equipmentProperties["name"] in self.project.equipment:
-            QTreeWidgetItem(self.project.equipment_tree, [self.project.equipmentProperties["name"]])
-        
-        self.project.equipment[self.project.equipmentProperties["name"]] = self.project.equipmentProperties
-
-        self.clearEquipmentFields()
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-
-        alert("Element added successfully!")
-
-    def editEquipment(self, equip):
-        properties = self.project.equipment[equip]
-
-        self.ui.equipmentDisplayName.setText(properties["displayName"])
-        self.ui.equipmentName.setText(properties["name"])
-        self.ui.helmetArmor.setValue(properties["armor"]["helmet"])
-        self.ui.chestplateArmor.setValue(properties["armor"]["chestplate"])
-        self.ui.leggingsArmor.setValue(properties["armor"]["leggings"])
-        self.ui.bootsArmor.setValue(properties["armor"]["boots"])
-        self.ui.equipmentArmorToughness.setValue(properties["toughness"])
-        self.ui.equipmentKBResistance.setValue(properties["kb_resistance"])
-        self.ui.equipmentDurability.setValue(properties["durability"]["chestplate"])
-        self.project.equipmentTexture = properties["itemTextures"]
-        self.project.equipmentModel = properties["modelTextures"]
-        self.ui.groupBox.setChecked(properties["includeHorse"])
-
-        self.ui.helmetItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["helmet"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.chestplateItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["chestplate"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.leggingsItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["leggings"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.bootsItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["boots"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        try: self.ui.horseArmorItemLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentTexture["horseArmor"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        except: pass
-        self.ui.chestplateModelLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentModel["h"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        self.ui.leggingsModelLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentModel["h_l"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        try: self.ui.horseArmorModelLabel.setPixmap(QPixmap.fromImage(QImage(self.project.equipmentModel["horseArmor"])).scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio))
-        except: pass
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.EQUIPMENT)
-
-    #######################
-    # ARCHETYPE TAB       #
-    #######################
-
-    def newArchetype(self):
-        self.unsavedChanges = True
-        self.populateArchetypeAttributes()
-        self.populateArchetypeDamageTypes()
-        self.ui.elementEditor.setCurrentIndex(ElementPage.ARCHETYPE_GENERATOR)
-
-    def populateArchetypeAttributes(self):
-        self.ui.archetypeAttributeComboBox.clear()
-
-        for attribute in self.project.data["attributes"]:
-            self.ui.archetypeAttributeComboBox.addItem(attribute)
-    
-    def populateArchetypeDamageTypes(self):
-        self.ui.archetypeDamgeType.clear()
-
-        for damageType in self.project.data["damage_types"]:
-            self.ui.archetypeDamgeType.addItem(damageType)
-
-    def addAttribute(self):
-        attributeName = self.ui.archetypeAttributeComboBox.currentText()
-        if attributeName in self.archetypeAttributes: return
-
-        newAttribute = AttributeWidget()
-        self.archetypeAttributes[attributeName] = newAttribute
-        
-        newAttribute.ui.attributeLabel.setText(attributeName)
-        
-        self.ui.attributeWidgetLayout.addWidget(newAttribute)
-        newAttribute.ui.attributeRemove.clicked.connect(lambda: self.removeAttribute(newAttribute, attributeName, 1))
-    
-    def removeAttribute(self, attribute, attributeName, mode):
-        if mode: self.archetypeAttributes.pop(attributeName, None)
-        self.ui.attributeWidgetLayout.removeWidget(attribute)
-        attribute.setParent(None)
-        attribute.deleteLater()
-    
-    def clearArchetypeFields(self):
-        FieldResetter.clear_labels(
-            self.ui.archetypeName,
-            self.ui.archetypeItem
-        )
-        FieldResetter.reset_spin_boxes(
-            self.ui.archetypeHorizontalPower,
-            self.ui.archetypeVerticalPower,
-            self.ui.archetypeFuse,
-            self.ui.archetypePower,
-            self.ui.archetypeAmount
-        )
-        FieldResetter.reset_combo_boxes(
-            self.ui.archetypeDamgeType,
-            self.ui.archetypeAttributeComboBox
-        )
-        FieldResetter.uncheck_boxes(
-            self.ui.archetypeBuoyant,
-            self.ui.archetypeExplosion,
-            self.ui.archetypeContactDamage,
-            self.ui.archetypeCausesFire,
-            self.ui.archetypeAttributeToSource
-        )
-
-        for attribute in self.archetypeAttributes:
-            self.removeAttribute(self.archetypeAttributes[attribute], attribute, 0)
-        self.archetypeAttributes = {}
-
-    def validateArchetypeDetails(self):
-        if not FieldValidator.validate_text_field(self.ui.archetypeName, "abcdefghijklmnopqrstuvwxyz _-!0123456789", "Archetype Name"):
-            return 0
-        if not FieldValidator.validate_text_field(self.ui.archetypeItem, "#abcdefghijklmnopqrstuvwxyz _-!0123456789:", "Archetype Item"):
-            return 0
-        return 1
-
-    def addArchetype(self): 
-        if self.validateArchetypeDetails() == 0: return
-        
-        if self.ui.archetypeBuoyant.isChecked():
-            val = "true"
-        else: val = "false"
-
-        if self.ui.archetypeCausesFire.isChecked():
-            fire = "true"
-        else: fire = "false"
-
-        if self.ui.archetypeAttributeToSource.isChecked():
-            attrsrc = "true"
-        else: attrsrc = "false"
-
-        self.archetypeProperties = {
-            "name": self.ui.archetypeName.text(),
-            "item": self.ui.archetypeItem.text(),
-            "buoyant": val,
-            "vertical_power": self.ui.archetypeVerticalPower.value(),
-            "horizontal_power": self.ui.archetypeHorizontalPower.value()
-        }
-
-        if self.ui.archetypeExplosion.isChecked():
-            explosion = {
-                "causes_fire": fire,
-                "fuse": self.ui.archetypeFuse.value(),
-                "power": self.ui.archetypePower.value()
-            }
-            self.archetypeProperties["explosion"] = explosion
-        
-        if self.ui.archetypeContactDamage.isChecked():
-            contact_damage = {
-                "amount": self.ui.archetypeAmount.value(),
-                "attr_to_source": attrsrc,
-                "damage_type": self.ui.archetypeDamgeType.currentText()
-            }
-            self.archetypeProperties["contact_damage"] = contact_damage
-
-        attributes = {}
-        for key in self.archetypeAttributes:
-            attriUI = self.archetypeAttributes[key].ui
-            sign = attriUI.attributeSign.currentText()
-            if sign == '-': sign = -1
-            else: sign = 1
-            attribute = {
-                "attribute": key,
-                "id": f"minecraft:{self.project.packDetails["author"]}_{self.archetypeProperties["name"]}_{key}",
-                "amount": attriUI.amountSpinBox.value() * sign,
-                "operation": attriUI.amountOperationBox.currentText()
-            }
-            attributes[key] = attribute
-        
-        self.archetypeProperties["attributes"] = attributes
-        
-        if not self.archetypeProperties["name"] in self.project.archetypes:
-            QTreeWidgetItem(self.project.archetypes_tree, [self.archetypeProperties["name"]])
-        
-        self.project.archetypes[self.archetypeProperties["name"]] = self.archetypeProperties
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.HOME)
-        self.clearArchetypeFields()
-
-        alert("Element added successfully!")
-
-    def editArchetype(self, archetype):
-        properties = self.project.archetypes[archetype]
-
-        for attr in list(self.archetypeAttributes.keys()):
-            self.removeAttribute(self.archetypeAttributes[attr], attr, 0)
-        self.archetypeAttributes = {}
-
-        self.populateArchetypeAttributes()
-        self.populateArchetypeDamageTypes()
-
-        self.ui.archetypeName.setText(properties["name"])
-        self.ui.archetypeItem.setText(properties["item"])
-        self.ui.archetypeBuoyant.setChecked(properties["buoyant"] == "true")
-        self.ui.archetypeVerticalPower.setValue(properties["vertical_power"])
-        self.ui.archetypeHorizontalPower.setValue(properties["horizontal_power"])
-
-        has_explosion = "explosion" in properties
-        self.ui.archetypeExplosion.setChecked(has_explosion)
-        if has_explosion:
-            self.ui.archetypeCausesFire.setChecked(properties["explosion"]["causes_fire"] == "true")
-            self.ui.archetypeFuse.setValue(properties["explosion"]["fuse"])
-            self.ui.archetypePower.setValue(properties["explosion"]["power"])
-
-        has_contact = "contact_damage" in properties
-        self.ui.archetypeContactDamage.setChecked(has_contact)
-        if has_contact:
-            self.ui.archetypeAmount.setValue(properties["contact_damage"]["amount"])
-            self.ui.archetypeAttributeToSource.setChecked(properties["contact_damage"]["attr_to_source"] == "true")
-            self.ui.archetypeDamgeType.setCurrentText(properties["contact_damage"]["damage_type"])
-
-        for key, attr_data in properties.get("attributes", {}).items():
-            newAttribute = AttributeWidget()
-            self.archetypeAttributes[key] = newAttribute
-            newAttribute.ui.attributeLabel.setText(key)
-            newAttribute.ui.amountSpinBox.setValue(abs(attr_data["amount"]))
-            newAttribute.ui.attributeSign.setCurrentText("-" if attr_data["amount"] < 0 else "+")
-            newAttribute.ui.amountOperationBox.setCurrentText(attr_data["operation"])
-            self.ui.attributeWidgetLayout.addWidget(newAttribute)
-            newAttribute.ui.attributeRemove.clicked.connect(
-                lambda _, n=newAttribute, k=key: self.removeAttribute(n, k, 1)
-            )
-
-        self.ui.elementEditor.setCurrentIndex(ElementPage.ARCHETYPE_GENERATOR)
-
-    #######################
-    # TOOLS               #
-    #######################
-
-    def textGenerator(self):
+    def _open_text_generator(self):
         self.ui.elementEditor.setCurrentIndex(ElementPage.TEXT_GENERATOR)
-        self.ui.textGeneratorTextBox.setFont(self.minecraftFont)
+        self.ui.textGeneratorTextBox.setFont(self.minecraft_font)
         self.ui.textGeneratorTextBox.setStyleSheet("background-color: #1e1e1e; color: white;")
 
-    def potionGenerator(self):
-        for potionEffect in self.project.data["effects"]:
-            effect = potionEffect.replace("_", " ").capitalize()
-            self.ui.potionEffectBox.addItem(effect)
-        
-        self.potion_generator = PotionGenerator()
-        self.effectWidgets = []
-        
+    # ── Potion generator ──────────────────────────────────────────────────
+
+    def _open_potion_generator(self):
+        self.ui.potionEffectBox.clear()
+        for effect in self.pm.project.mc_data.get("effects", []):
+            self.ui.potionEffectBox.addItem(effect.replace("_", " ").capitalize())
+        self.potion_gen = PotionGenerator()
+        self._effect_widgets = []
         self.ui.elementEditor.setCurrentIndex(ElementPage.POTION_GENERATOR)
 
-    def addPotionEffect(self):
-        effectId = self.ui.potionEffectBox.currentText()
-        
-        # Check if already exists using the generator
-        if self.potion_generator.hasEffect(effectId):
-            QMessageBox.warning(self, "Duplicate Effect",
-                            f"{effectId} is already added to this Potion!")
+    def _add_potion_effect(self):
+        if self.potion_gen is None:
             return
-        
-        # Create the widget
-        effectWidget = PotionEffectWidget(effectId, self.removeEffectWidget)
-        
-        # Add to layout
-        insertPosition = self.ui.verticalLayout_4.count() - 1
-        if insertPosition < 0:
-            insertPosition = 0
-        self.ui.verticalLayout_4.insertWidget(insertPosition, effectWidget)
-        
-        # Track the widget
-        self.effectWidgets.append(effectWidget)
-        
-        # Add to generator
-        self.potion_generator.addEffect(effectId)
-        
-        self.ui.potionScrollArea.ensureWidgetVisible(effectWidget)
+        effect_id = self.ui.potionEffectBox.currentText()
+        if self.potion_gen.hasEffect(effect_id):
+            QMessageBox.warning(self, "Duplicate", f"{effect_id} is already added.")
+            return
+        widget = PotionEffectWidget(effect_id, self._remove_potion_effect)
+        pos = max(0, self.ui.verticalLayout_4.count() - 1)
+        self.ui.verticalLayout_4.insertWidget(pos, widget)
+        self._effect_widgets.append(widget)
+        self.potion_gen.addEffect(effect_id)
+        self.ui.potionScrollArea.ensureWidgetVisible(widget)
 
-    def removeEffectWidget(self, widget):
-        if widget in self.effectWidgets:
-            self.effectWidgets.remove(widget)
-            self.potion_generator.removeEffect(widget.effectId)
+    def _remove_potion_effect(self, widget: PotionEffectWidget):
+        if widget in self._effect_widgets:
+            self._effect_widgets.remove(widget)
+            self.potion_gen.removeEffect(widget.effectId)
             widget.deleteLater()
 
-    def getPotionColor(self):
+    def _pick_potion_color(self):
         color = PotionColorPicker.showColorDialog(self)
         if color is not None:
-            self.potion_generator.setColor(color)
-            stylesheet = PotionColorPicker.colorToStylesheet(color)
-            self.ui.potionColor.setStyleSheet(stylesheet)
+            self.potion_gen.setColor(color)
+            self.ui.potionColor.setStyleSheet(PotionColorPicker.colorToStylesheet(color))
 
-    def generatePotion(self):
-        # Update generator with current UI values
-        self.potion_generator.setName(self.ui.potionName.text())
-        self.potion_generator.setPotionType(self.ui.potionType.currentText())
-        
-        # Clear existing effects and add current ones
-        self.potion_generator.clearEffects()
-        for widget in self.effectWidgets:
-            effect = widget.getPotionEffect()
-            self.potion_generator.addEffect(effect)
-        
-        # Generate and display command
-        command = self.potion_generator.generateCommand()
-        self.ui.potionOutput.setText(command)
+    def _generate_potion(self):
+        if self.potion_gen is None:
+            return
+        self.potion_gen.setName(self.ui.potionName.text())
+        self.potion_gen.setPotionType(self.ui.potionType.currentText())
+        self.potion_gen.clearEffects()
+        for w in self._effect_widgets:
+            self.potion_gen.addEffect(w.getPotionEffect())
+        self.ui.potionOutput.setText(self.potion_gen.generateCommand())
 
-    def copyPotionOutput(self):
-        clipboard = QApplication.clipboard()
-        text = self.ui.potionOutput.text()
-        clipboard.setText(text)
+    def _copy_potion_output(self):
+        QApplication.clipboard().setText(self.ui.potionOutput.text())
 
-    #######################
-    # PACK GENERATION     #
-    #######################
 
-    def generate(self):
-        self.ui.statusbar.showMessage("Exporting project...", 2000)
-        version = self.project.packDetails["version"].replace(".", "_")
-
-        if getattr(sys, 'frozen', False):
-            internal = 'src.'
-        else:
-            internal = ''
-
-        generator = importlib.import_module(f'{internal}generation.v{version}.generator').Generator
-
-        loc = self.settings.get('file_export', 'default_export_location')
-        if loc == 'default':
-            loc = self.mainDirectory / 'exports'
-            os.makedirs(loc, exist_ok=True)
-
-        generator = generator(
-            APP_VERSION,
-            self.project.packDetails,
-            self.project.dataFormat,
-            self.project.resourceFormat,
-            self.project.header,
-            self.project.blocks,
-            self.project.items,
-            self.project.recipes,
-            self.project.paintings,
-            self.project.data,
-            loc,
-            self.project.structures,
-            self.project.equipment,
-            self.project.archetypes
-        )
-
-        generator.generateDatapack()
-
-        # ZIP
-        packName = self.project.packDetails["name"]
-        self.dataPackPath = os.path.join(loc, packName)
-        self.resourcePackPath = os.path.join(loc, f'{packName} Resource Pack')
-        
-        shutil.make_archive(f'{self.dataPackPath} Data Pack', 'zip', self.dataPackPath)
-        shutil.make_archive(self.resourcePackPath, 'zip', self.resourcePackPath)
-
-        # Remove original folders
-        shutil.rmtree(self.dataPackPath)
-        shutil.rmtree(self.resourcePackPath)
-
-        # Present Files
-        dpPath = QFileDialog.getExistingDirectory(self, "Export Data Pack To:", "")
-        rpPath = QFileDialog.getExistingDirectory(self, "Export Resource Pack To:", "")
-        shutil.move(f'{self.dataPackPath} Data Pack.zip', os.path.join(dpPath, f'{packName} Data Pack.zip'))
-        shutil.move(f'{self.resourcePackPath}.zip', os.path.join(rpPath, f'{packName} Resource Pack.zip'))
-        
-        alert("Pack Generated!")
-
+# ── Entry point ────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = App()
-    window.show()
     app.setStyle("Fusion")
+    window = Window()
+    window.show()
     sys.exit(app.exec())
